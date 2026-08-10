@@ -1,0 +1,17 @@
+{
+  "name": "trip-planner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack AI-powered trip planner using React, Express, and Google Gemini.",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "build": "npm run build --prefix frontend",
+    "start": "npm start --prefix backend"
+  },
+  "overrides": {
+    "shell-quote": "1.8.4"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
