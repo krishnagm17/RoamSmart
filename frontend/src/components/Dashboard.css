@@ -744,6 +744,7 @@
   }
   .gt-final {
     padding: 60px 5%;
+    min-height: auto;
   }
   .gt-cards { grid-template-columns: repeat(2, 1fr); }
   .gt-steps { grid-template-columns: repeat(3, 1fr); gap: 18px; }
@@ -759,6 +760,7 @@
   }
   .gt-final {
     padding: 50px 5%;
+    min-height: auto;
   }
   .gt-cards { grid-template-columns: 1fr; }
   .gt-steps { grid-template-columns: 1fr; }
