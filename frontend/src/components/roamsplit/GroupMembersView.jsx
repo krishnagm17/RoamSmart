@@ -39,8 +39,8 @@ export default function GroupMembersView({ travellers, selfUid, onAddTraveller }
   }
 
   return (
-    <div className="rs-section" style={{ marginTop: 24 }}>
-      <h2>Group Members</h2>
+    <div style={{ marginTop: 24 }}>
+      <h2 style={{ fontFamily: "var(--font-display, serif)", fontSize: 18, margin: "0 0 4px" }}>Group Members</h2>
       <p className="rs-sub" style={{ marginBottom: 16 }}>
         Only registered RoamSmart users can join the split group. Search by name, username, or email.
       </p>
