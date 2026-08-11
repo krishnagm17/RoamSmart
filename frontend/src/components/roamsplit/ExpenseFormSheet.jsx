@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Camera, X } from "lucide-react";
+import { Plus, Trash2, Camera, X, Search, Loader } from "lucide-react";
 import {
   CATEGORIES, SPLIT_METHODS, inr, round2, splitError,
   compressToDataUrl, uid,
 } from "./splitEngine";
+import { searchUsers } from "../../supabase/userStore";
 
 const METHOD_LABEL = { equal: "Equal", custom: "Amount", percentage: "%", shares: "Shares" };
 
@@ -36,8 +37,11 @@ export default function ExpenseFormSheet({
     return map;
   });
 
-  const [newName, setNewName] = useState("");
-  const [newUpi, setNewUpi] = useState("");
+  // Real user search state
+  const [userSearch, setUserSearch] = useState("");
+  const [userResults, setUserResults] = useState([]);
+  const [userSearching, setUserSearching] = useState(false);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const payerEdited = useRef(editing ? true : false);
@@ -47,8 +51,23 @@ export default function ExpenseFormSheet({
     [travellers, selectedIds],
   );
 
-  // A lone payer covers the whole expense — keep their contribution synced to the total
-  // until they edit it manually (or more payers are added).
+  // Debounced search for real users
+  useEffect(() => {
+    if (!userSearch.trim() || userSearch.trim().length < 2) {
+      setUserResults([]);
+      return;
+    }
+    setUserSearching(true);
+    const timer = setTimeout(async () => {
+      const existingUids = travellers.map((t) => t.id);
+      const results = await searchUsers(userSearch.trim(), existingUids);
+      setUserResults(results);
+      setUserSearching(false);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [userSearch]);
+
+  // Single payer auto-syncs amount
   useEffect(() => {
     if (payerEdited.current || payers.length !== 1) return;
     const amt = Number(amount);
@@ -59,7 +78,7 @@ export default function ExpenseFormSheet({
     });
   }, [amount, payers.length]);
 
-  // Auto-fill equal shares whenever equal is active and amount/participants change.
+  // Auto-fill equal shares
   useEffect(() => {
     if (method !== "equal") return;
     const amt = Number(amount);
@@ -107,32 +126,43 @@ export default function ExpenseFormSheet({
     }
   }, [method]);
 
-  function pickTraveller(id, name) {
+  function pickTraveller(id) {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
-  function addTraveller() {
-    const name = newName.trim();
-    if (!name) return;
-    const tid = uid("t");
-    const upi = newUpi.trim();
-    if (typeof onAddTraveller === "function") onAddTraveller({ id: tid, name, upi });
-    setSelectedIds((prev) => [...prev, tid]);
-    setNewName("");
-    setNewUpi("");
+  // Add a real registered user as a traveller
+  function addRealUser(u) {
+    // Check for duplicate
+    if (travellers.some((t) => t.id === u.uid)) {
+      showToast("This user is already in the group", "error");
+      return;
+    }
+    const newTraveller = { id: u.uid, name: u.name, upi: u.upi || "", isReal: true };
+    if (typeof onAddTraveller === "function") onAddTraveller(newTraveller);
+    setSelectedIds((prev) => [...prev, u.uid]);
+    setUserSearch("");
+    setUserResults([]);
+    showToast(`${u.name} added`, "success");
+  }
+
+  // Add another payer from the selected travellers list
+  function addPayer() {
+    // Find the first selected traveller who is not already a payer
+    const notYetPayer = travellers.find(
+      (t) => selectedIds.includes(t.id) && !payers.some((p) => p.uid === t.id)
+    );
+    if (!notYetPayer) {
+      showToast("All selected participants are already payers. Add more people first.", "info");
+      return;
+    }
+    payerEdited.current = true;
+    setPayers((prev) => [...prev, { uid: notYetPayer.id, name: notYetPayer.name, amount: "" }]);
   }
 
   function setPayerAmount(idx, value) {
     payerEdited.current = true;
     setPayers((prev) => prev.map((p, i) => (i === idx ? { ...p, amount: value } : p)));
-  }
-
-  function addPayer() {
-    const next = selectedIds.find((id) => !payers.some((p) => p.uid === id));
-    if (!next) return;
-    const t = travellers.find((x) => x.id === next);
-    setPayers((prev) => [...prev, { uid: next, name: t ? t.name : "", amount: "" }]);
   }
 
   function removePayer(idx) {
@@ -182,17 +212,20 @@ export default function ExpenseFormSheet({
 
   return (
     <div className="rs-overlay" onClick={onClose}>
-      <div className="rs-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="rs-sheet" onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: "90vh", overflowY: "auto", paddingBottom: 40 }}>
         <div className="rs-sheet-handle" />
         <h3 className="rs-sheet-title">{editing ? "Edit Expense" : "Add Expense"}</h3>
-        <p className="rs-sheet-sub" style={{ margin: 0 }}>Record, split and track it together.</p>
+        <p className="rs-sheet-sub" style={{ margin: "0 0 16px" }}>Record, split and track it together.</p>
 
-        <div className="rs-field" style={{ marginTop: 14 }}>
+        {/* Title */}
+        <div className="rs-field">
           <label className="rs-label">What was it for?</label>
           <input className="rs-input" value={title} onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Dinner at a beach shack" />
         </div>
 
+        {/* Amount + Date */}
         <div className="rs-row">
           <div className="rs-field">
             <label className="rs-label">Amount (₹)</label>
@@ -206,6 +239,7 @@ export default function ExpenseFormSheet({
           </div>
         </div>
 
+        {/* Category */}
         <div className="rs-field">
           <label className="rs-label">Category</label>
           <select className="rs-select" value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -213,6 +247,7 @@ export default function ExpenseFormSheet({
           </select>
         </div>
 
+        {/* Destination */}
         {destinations && destinations.length > 0 && (
           <div className="rs-field">
             <label className="rs-label">Where (destination)</label>
@@ -227,9 +262,9 @@ export default function ExpenseFormSheet({
         <div className="rs-field">
           <label className="rs-label">Who paid?</label>
           {payers.map((p, i) => (
-            <div key={p.uid || i} className="rs-split-row">
+            <div key={p.uid || i} className="rs-split-row" style={{ marginBottom: 8 }}>
               <span className="rs-ava alt" style={{ fontSize: 11 }}>{i === 0 ? "👤" : (p.name || "?").slice(0, 1)}</span>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name || "Unknown"}</div>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{i === 0 ? "Paid" : "Also paid"}</div>
               </div>
@@ -243,7 +278,7 @@ export default function ExpenseFormSheet({
               )}
             </div>
           ))}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
             <button className="rs-chip" onClick={addPayer} type="button">
               <Plus size={14} /> Add another payer
             </button>
@@ -253,30 +288,78 @@ export default function ExpenseFormSheet({
           </div>
         </div>
 
-        {/* Participants */}
+        {/* Split between — real user search only */}
         <div className="rs-field">
           <label className="rs-label">Split between who?</label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
             {travellers.map((t) => (
               <button key={t.id} className={`rs-chip ${selectedIds.includes(t.id) ? "on" : ""}`}
-                onClick={() => pickTraveller(t.id, t.name)} type="button">
+                onClick={() => pickTraveller(t.id)} type="button">
                 <span className="rs-ava sm">{t.name.slice(0, 1).toUpperCase()}</span>
                 {t.name}
               </button>
             ))}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input className="rs-input" style={{ flex: 1 }} value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Name (e.g. Rahul)" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTraveller())} />
-              <input className="rs-input" style={{ flex: 1 }} value={newUpi}
-                onChange={(e) => setNewUpi(e.target.value)}
-                placeholder="UPI ID (e.g. rahul@upi)" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTraveller())} />
-              <button className="rs-btn rs-btn-ghost" style={{ width: "auto" }} onClick={addTraveller} type="button"><Plus size={16} /></button>
+
+          {/* Real user search */}
+          <div style={{ position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-card,#0f1512)", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 12, padding: "8px 12px" }}>
+              <Search size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
+              <input
+                style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "var(--text)", fontSize: 13 }}
+                placeholder="Search registered RoamSmart users to add…"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+              />
+              {userSearching && <Loader size={14} style={{ color: "var(--text-secondary)", flexShrink: 0, animation: "spin 1s linear infinite" }} />}
+              {userSearch && !userSearching && (
+                <button type="button" onClick={() => { setUserSearch(""); setUserResults([]); }}
+                  style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 2 }}>
+                  <X size={14} />
+                </button>
+              )}
             </div>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)", paddingLeft: 2 }}>Add UPI ID to enable direct payment (GPay, PhonePe, Paytm)</span>
+
+            {userSearch.trim().length >= 2 && !userSearching && userResults.length === 0 && (
+              <div style={{ padding: "10px 12px", fontSize: 13, color: "var(--text-secondary)", background: "var(--bg-card,#0f1512)", border: "1px solid var(--border)", borderRadius: 12, marginTop: 6 }}>
+                No registered users found for "{userSearch}". Only RoamSmart members can be added.
+              </div>
+            )}
+
+            {userResults.length > 0 && (
+              <div style={{ background: "var(--bg-card,#0f1512)", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 12, marginTop: 6, overflow: "hidden" }}>
+                {userResults.map((u) => {
+                  const alreadyAdded = travellers.some((t) => t.id === u.uid);
+                  return (
+                    <div key={u.uid} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderBottom: "1px solid var(--border,rgba(255,255,255,.06))" }}>
+                      <span className="rs-ava sm" style={{ background: "linear-gradient(135deg,#10b981,#059669)", flexShrink: 0 }}>
+                        {u.name.slice(0, 1).toUpperCase()}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                          {u.name}
+                          <span style={{ fontSize: 10, background: "rgba(16,185,129,0.15)", color: "#10b981", padding: "2px 5px", borderRadius: 5, fontWeight: 600 }}>✓ RoamSmart</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>@{u.username}{u.upi ? ` · UPI: ${u.upi}` : ""}</div>
+                      </div>
+                      <button
+                        className="rs-btn rs-btn-primary"
+                        style={{ width: "auto", padding: "5px 12px", fontSize: 12 }}
+                        type="button"
+                        disabled={alreadyAdded}
+                        onClick={() => addRealUser(u)}
+                      >
+                        {alreadyAdded ? "Added" : <><Plus size={12} /> Add</>}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+          <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}>
+            Only registered RoamSmart users can be added. Search by name, username, or email.
+          </p>
         </div>
 
         {/* Split method */}
@@ -323,12 +406,14 @@ export default function ExpenseFormSheet({
           </div>
         </div>
 
+        {/* Description */}
         <div className="rs-field">
           <label className="rs-label">Description (optional)</label>
           <textarea className="rs-textarea" value={description}
             onChange={(e) => setDescription(e.target.value)} placeholder="Anything the group should know…" />
         </div>
 
+        {/* Receipt */}
         <div className="rs-field">
           <label className="rs-label">Receipt (optional)</label>
           {receipt ? (
@@ -351,7 +436,7 @@ export default function ExpenseFormSheet({
 
         {error && <div className="rs-error" style={{ marginBottom: 12 }}>{error}</div>}
 
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, paddingTop: 8 }}>
           <button className="rs-btn rs-btn-ghost" style={{ flex: 1 }} onClick={onClose} type="button">Cancel</button>
           <button className="rs-btn rs-btn-primary" style={{ flex: 1 }} onClick={save} type="button" disabled={busy}>
             {editing ? "Save Changes" : "Add Expense"}

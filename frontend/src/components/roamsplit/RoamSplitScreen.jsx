@@ -22,6 +22,7 @@ import TripSummaryView from "./TripSummaryView";
 import NotificationsView from "./NotificationsView";
 import UpiSheet from "./UpiSheet";
 import { PaymentProfileSheet } from "./PaymentProfileSheet";
+import GroupMembersView from "./GroupMembersView";
 
 export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast }) {
   const [profile, setProfileState] = useState(loadProfile);
@@ -355,6 +356,7 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
     settle: "Settle up",
     summary: "Trip summary",
     notifications: "Notifications",
+    members: "Group Members",
   }[view];
 
   return (
@@ -410,7 +412,7 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
             </div>
           </div>
 
-          <div className="rs-btns">
+          <div className="rs-btns" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, margin: "14px 0" }}>
             <button className="rs-btn rs-btn-primary" type="button" onClick={() => setForm({ open: true, editing: null })}>
               <Plus size={16} /> Add Expense
             </button>
@@ -422,6 +424,9 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
             </button>
             <button className="rs-btn rs-btn-ghost" type="button" onClick={() => setView("settle")}>
               <Wallet size={15} /> Settle Up
+            </button>
+            <button className="rs-btn rs-btn-ghost" type="button" onClick={() => setView("members")}>
+              <UserRound size={15} /> Members
             </button>
           </div>
 
@@ -487,6 +492,14 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
 
       {view === "summary" && (
         <TripSummaryView travellers={travellers} expenses={expenses} settlements={settlements} selfUid={userId} />
+      )}
+
+      {view === "members" && (
+        <GroupMembersView
+          travellers={travellers}
+          selfUid={userId}
+          onAddTraveller={onAddTraveller}
+        />
       )}
 
       {view === "notifications" && (
