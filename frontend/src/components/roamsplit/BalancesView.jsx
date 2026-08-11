@@ -58,6 +58,10 @@ export default function BalancesView({ travellers, expenses, settlements, selfUi
         if (openQueueOnly && Math.abs(b.net) <= 0.01 && !inProgress.some((s) => s.fromUid === t.id || s.toUid === t.id)) return null;
         const owesSomeone = b.net < -0.01;
         const receives = b.net > 0.01;
+        
+        // Find if the current user owes this specific person money
+        const iOweThem = creditors.find((s) => s.toUid === t.id);
+
         return (
           <div key={t.id} className="rs-person">
             <span className={`rs-ava ${avaColor(t.id, selfUid)}`}>{t.name.slice(0, 1).toUpperCase()}</span>
@@ -67,11 +71,19 @@ export default function BalancesView({ travellers, expenses, settlements, selfUi
                 {receives ? `Should receive ${inr(b.net)}` : owesSomeone ? `Owes ${inr(-b.net)}` : t.id === selfUid ? "All settled 🎉" : "Settled"}
               </div>
             </div>
-            {owesSomeone ? (
+            {iOweThem ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                <span className="rs-person-amt pos" style={{ fontFamily: "monospace", fontSize: 12 }}>{inr(b.net)}</span>
+                <button className="rs-btn rs-btn-primary" style={{ width: "auto", padding: "6px 12px", fontSize: 12 }}
+                  type="button" onClick={() => onPay({ uid: t.id, name: t.name, amount: iOweThem.amount })}>
+                  Pay {inr(iOweThem.amount)}
+                </button>
+              </div>
+            ) : owesSomeone ? (
               t.id === selfUid ? (
                 <button className="rs-btn rs-btn-primary" style={{ width: "auto", padding: "10px 14px", fontSize: 13 }}
                   type="button" onClick={onOpenSettleUp}>
-                  Pay Now <ArrowRight size={14} />
+                  View debts <ArrowRight size={14} />
                 </button>
               ) : (
                 <span className="rs-person-amt neg">−{inr(-b.net)}</span>
