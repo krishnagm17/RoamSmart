@@ -14,6 +14,7 @@ import {
   loadSplitGroups, createSplitGroup, deleteSplitGroup, splitGroupToTrip,
   ensureSplitTripRow, pullSplitTrip, subscribeSplitTrip, subscribeSplitGroups,
   notifySplitMembers, syncTravellersToSupabase,
+  pullSplitNotifs, subscribeSplitNotifs, markSplitNotifsRead,
 } from "./roomStorage";
 import { useAuth } from "../../auth/AuthContext.jsx";
 import ExpenseFormSheet from "./ExpenseFormSheet";
@@ -112,15 +113,43 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
     ensureSplitTripRow(tripId, meta)
       .then(() => pullSplitTrip(tripId))
       .then(() => reload())
-      .catch(() => {});
+      .catch((err) => console.warn("split open sync failed:", err?.message || err));
     const unsub = subscribeSplitTrip(tripId, () => reload());
     return () => { if (unsub) unsub(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
 
+  // Merge the shared (Supabase) notifications for this split into the bell so
+  // the added member actually sees "X added you to the split" / expense alerts.
+  useEffect(() => {
+    if (!tripId || !userId) return () => {};
+    let alive = true;
+    const merge = (remote) => {
+      if (!alive) return;
+      setNotifications((cur) => {
+        const byId = new Map();
+        (cur || []).forEach((n) => { if (n && n.id) byId.set(n.id, n); });
+        (remote || []).forEach((n) => { if (n && n.id) byId.set(n.id, n); });
+        return [...byId.values()]
+          .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+      });
+    };
+    pullSplitNotifs(tripId, userId).then(merge).catch(() => {});
+    const unsub = subscribeSplitNotifs(tripId, userId, merge);
+    return () => { alive = false; if (unsub) unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId, userId]);
+
   function notify(message) {
     addNotification(tripLabel, message);
-    setNotifications(loadNotifications());
+    // Keep already-shown remote notifications in the bell too.
+    setNotifications((cur) => {
+      const byId = new Map();
+      (cur || []).forEach((n) => { if (n && n.id) byId.set(n.id, n); });
+      loadNotifications().forEach((n) => { if (n && n.id) byId.set(n.id, n); });
+      return [...byId.values()]
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    });
   }
 
   function closeForm() { setForm(null); }
@@ -264,7 +293,10 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
 
   function markAllRead() {
     saveNotifications(notifications.map((n) => ({ ...n, read: true })));
-    setNotifications(loadNotifications());
+    setNotifications((cur) => (cur || []).map((n) => ({ ...n, read: true })));
+    if (tripId && userId) {
+      markSplitNotifsRead(tripId, userId).catch(() => {});
+    }
   }
 
   function clearNotifs() {

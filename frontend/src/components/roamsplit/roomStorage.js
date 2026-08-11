@@ -72,21 +72,21 @@ export function tripLabelFor(trip) {
 export function loadExpenses(tripId) { return read(KEYS.expenses(tripId), []); }
 export function saveExpenses(tripId, list) {
   const ok = write(KEYS.expenses(tripId), list);
-  pushExpenseList(tripId, list).catch(() => {});
+  pushExpenseList(tripId, list).catch((err) => console.warn("expense sync failed:", err?.message || err));
   return ok;
 }
 
 export function loadSettlements(tripId) { return read(KEYS.settlers(tripId), []); }
 export function saveSettlements(tripId, list) {
   const ok = write(KEYS.settlers(tripId), list);
-  pushSettlementList(tripId, list).catch(() => {});
+  pushSettlementList(tripId, list).catch((err) => console.warn("settlement sync failed:", err?.message || err));
   return ok;
 }
 
 export function loadTravellers(tripId) { return read(KEYS.travellers(tripId), []); }
 export function saveTravellers(tripId, list) {
   const ok = write(KEYS.travellers(tripId), list);
-  pushTravellers(tripId, list).catch(() => {});
+  pushTravellers(tripId, list).catch((err) => console.warn("traveller sync failed:", err?.message || err));
   return ok;
 }
 
@@ -263,15 +263,16 @@ function emitSplitLocal(tripId) {
 export async function ensureSplitTripRow(tripId, meta) {
   if (!fsReady() || !tripId) return false;
   if (seenTripRow.has(tripId)) return true;
-  const { data: existing } = await supabase.from("groups").select("id").eq("id", tripId).maybeSingle();
+  const { data: existing } = await supabase.from("groups").select("id,createdBy").eq("id", tripId).maybeSingle();
   if (existing) {
     seenTripRow.add(tripId);
     // Keep the current user's own membership row fresh (name / UPI) so their
-    // crew always sees the latest payment details.
+    // crew always sees the latest payment details. Only the creator is admin.
     if (meta?.userId) {
+      const isCreator = existing.createdBy === meta.userId;
       await supabase.from("groupMembers").upsert(
         {
-          gid: tripId, firebaseUid: meta.userId, role: "admin", status: "joined",
+          gid: tripId, firebaseUid: meta.userId, role: isCreator ? "admin" : "member", status: "joined",
           name: meta.selfName || "", username: "", email: "", phone: "",
           avatar: null, upi: meta.selfUpi || "", joinedAt: nowIso(), lastReadAt: 0,
         },
@@ -359,7 +360,31 @@ export async function pullSplitTrip(tripId) {
     write(KEYS.settlers(tripId), list);
   }
   if (!memR.error) {
-    const list = (memR.data || []).map(rowToTraveller).filter((t) => t.id);
+    const rows = (memR.data || []).filter((r) => r.firebaseUid);
+    let list = rows.map(rowToTraveller);
+    // Fresh name + UPI from the users table always win, so a member's latest
+    // payment details reach everyone even if they were added before setting one.
+    const uids = [...new Set(rows.map((r) => r.firebaseUid))];
+    if (uids.length) {
+      const { data: us } = await supabase
+        .from("users").select("firebaseUid, displayName, upiId").in("firebaseUid", uids);
+      const byUid = new Map((us || []).map((x) => [x.firebaseUid, x]));
+      list = list.map((t) => {
+        const u = byUid.get(t.id);
+        return {
+          ...t,
+          name: (u && u.displayName) || t.name,
+          upi: (u && u.upiId) || t.upi,
+        };
+      });
+    }
+    // Merge with the current local cache so a member that was just added but
+    // whose Supabase write is still in flight (or was rejected) is not dropped.
+    const local = loadTravellers(tripId);
+    const seen = new Set(list.map((t) => t.id));
+    for (const t of local) {
+      if (t && t.id && !seen.has(t.id)) { list.push(t); seen.add(t.id); }
+    }
     write(KEYS.travellers(tripId), list);
   }
 }
@@ -373,7 +398,7 @@ async function pushExpenseList(tripId, list) {
     await supabase.from("expenses").upsert(
       { id: e.id, gid: tripId, data: e, createdAt: e.createdAt || nowIso() },
       { onConflict: "id" },
-    ).catch(() => {});
+    ).catch((err) => console.warn("split expense push failed:", err?.message || err));
   }
 }
 
@@ -386,7 +411,7 @@ async function pushSettlementList(tripId, list) {
     await supabase.from("settlements").upsert(
       { id: s.id, gid: tripId, data: s, createdAt: s.createdAt || nowIso() },
       { onConflict: "id" },
-    ).catch(() => {});
+    ).catch((err) => console.warn("split settlement push failed:", err?.message || err));
   }
 }
 
@@ -397,16 +422,29 @@ async function pushTravellers(tripId, list) {
   if (!fsReady() || !tripId) return;
   const ok = await ensureSplitTripRow(tripId);
   if (!ok) return;
+  const ids = (list || []).map((t) => t.id).filter(Boolean);
+  const byUid = new Map();
+  if (ids.length) {
+    const { data: us } = await supabase
+      .from("users").select("firebaseUid, displayName, upiId").in("firebaseUid", ids);
+    (us || []).forEach((x) => byUid.set(x.firebaseUid, x));
+  }
+  // Only the split creator is an admin; everyone else is a member.
+  const { data: gRow } = await supabase.from("groups").select("createdBy").eq("id", tripId).maybeSingle();
+  const creatorId = gRow?.createdBy;
   for (const t of list || []) {
     if (!t?.id) continue;
+    const u = byUid.get(t.id);
     await supabase.from("groupMembers").upsert(
       {
-        gid: tripId, firebaseUid: t.id, role: t.isYou ? "admin" : "member", status: "joined",
-        name: t.name || "", username: "", email: "", phone: "",
-        avatar: null, upi: t.upi || "", joinedAt: nowIso(), lastReadAt: 0,
+        gid: tripId, firebaseUid: t.id, role: t.id === creatorId ? "admin" : "member", status: "joined",
+        name: (u && u.displayName) || t.name || "",
+        username: "", email: "", phone: "",
+        avatar: null, upi: (u && u.upiId) || t.upi || "",
+        joinedAt: nowIso(), lastReadAt: 0,
       },
       { onConflict: "gid,firebaseUid" },
-    ).catch(() => {});
+    ).catch((err) => console.warn("groupMembers upsert failed:", err?.message || err));
   }
 }
 
@@ -470,6 +508,56 @@ export async function notifySplitMembers({ gid, gidName, text, kind, icon, exclu
   if (error) console.warn("notify_group failed:", error?.message || error);
 }
 
+// Pull this group's notifications for the current user so the split bell shows
+// messages other members left (e.g. "X added you to the split", "X added an
+// expense"). Returns items in the split bell's local shape.
+export async function pullSplitNotifs(tripId, uid) {
+  if (!fsReady() || !tripId || !uid) return [];
+  const { data, error } = await supabase
+    .from("notifications").select("*").eq("gid", tripId).eq("firebaseUid", uid)
+    .order("createdAt", { ascending: false }).limit(50);
+  if (error) {
+    console.warn("pullSplitNotifs failed:", error?.message || error);
+    return [];
+  }
+  return (data || []).map((n) => ({
+    id: n.id,
+    trip: n.gidName || "Split",
+    message: n.text || "",
+    createdAt: n.createdAt || nowIso(),
+    read: !!n.read,
+  }));
+}
+
+// Live: refresh the split bell whenever someone writes a notification for this
+// group (the RPC filters recipients server-side; RLS limits what we see).
+export function subscribeSplitNotifs(tripId, uid, cb) {
+  if (!tripId || !uid) return () => {};
+  if (!fsReady()) return () => {};
+  let alive = true;
+  let channel = null;
+  const refresh = async () => {
+    if (!alive) return;
+    const list = await pullSplitNotifs(tripId, uid);
+    if (alive) cb(list);
+  };
+  channel = supabase.channel(`rs-notifs:${tripId}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `gid=eq.${tripId}` }, refresh)
+    .subscribe();
+  refresh();
+  return () => {
+    alive = false;
+    if (channel) supabase.removeChannel(channel);
+  };
+}
+
+// Mark this split's notifications as read in Supabase too.
+export async function markSplitNotifsRead(tripId, uid) {
+  if (!fsReady() || !tripId || !uid) return;
+  await supabase.from("notifications").update({ read: true }).eq("gid", tripId).eq("firebaseUid", uid).catch((err) =>
+    console.warn("markSplitNotifsRead failed:", err?.message || err));
+}
+
 // ---------- Standalone Split Groups (independent of itinerary trips) ----------
 
 export function loadSplitGroups() { return read(KEYS.splitGroups, []); }
@@ -500,7 +588,7 @@ export function createSplitGroup({ name, destination, startDate, endDate }, crea
       name: group.name, destination: group.destination,
       startDate: group.startDate, endDate: group.endDate,
       userId: creatorId, isSplitGroup: true,
-    }).catch(() => {});
+    }).catch((err) => console.warn("createSplitGroup sync failed:", err?.message || err));
   }
   return group;
 }
@@ -562,7 +650,14 @@ export function subscribeSplitGroups(userId, cb) {
       .filter((g) => g.data && (g.data._isSplitGroup === true))
       .map(splitRowToGroup)
       .sort((a, b) => (b.createdAt || 0) > (a.createdAt || 0) ? 1 : -1);
-    if (alive) cb(splitGroups);
+    // Merge with local-only groups (created before Supabase sync, or while the
+    // remote row is still being created) so nothing disappears from the picker.
+    const remoteIds = new Set(splitGroups.map((g) => g.id));
+    const merged = [
+      ...splitGroups,
+      ...loadSplitGroups().filter((g) => !remoteIds.has(g.id)),
+    ];
+    if (alive) cb(merged);
   };
   channel = supabase.channel(`rs-groups:${userId}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "groupMembers", filter: `"firebaseUid"=eq.${userId}` }, refresh)
