@@ -319,7 +319,7 @@ export default function App() {
       case "trips":
         return (
           <motion.div key="trips" {...screenMotion} className="content-area">
-            <MyTripsScreen onViewTrip={handleViewTrip} onSplitExpenses={openSplit} />
+            <MyTripsScreen onViewTrip={handleViewTrip} />
           </motion.div>
         );
 

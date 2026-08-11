@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Plane, Eye, Trash2 } from 'lucide-react';
-import './LuxuryForms.css'; // Utilizing shared luxury styles
+import './LuxuryForms.css';
 
-export default function MyTripsScreen({ onViewTrip, onSplitExpenses }) {
+export default function MyTripsScreen({ onViewTrip }) {
   const [trips, setTrips] = useState([]);
 
   useEffect(() => {
@@ -38,16 +38,16 @@ export default function MyTripsScreen({ onViewTrip, onSplitExpenses }) {
         <span className="luxury-kicker">TRAVEL ARCHIVE</span>
         <h1 className="luxury-title font-display">My <span className="italic text-sand">Trips</span></h1>
       </header>
-      
+
       <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px'}}>
         {trips.map((trip, i) => (
           <div key={i} className="glass-surface" style={{padding: '32px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
-            
+
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px'}}>
               <div style={{background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '50%'}}>
                 <Plane size={24} className="text-sand" />
               </div>
-              <button 
+              <button
                 onClick={() => deleteTrip(i)}
                 style={{background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px'}}
               >
@@ -58,7 +58,7 @@ export default function MyTripsScreen({ onViewTrip, onSplitExpenses }) {
             <div style={{flexGrow: 1}}>
               <h3 className="font-display" style={{fontSize: '32px', marginBottom: '8px', lineHeight: 1.1}}>{trip.title || "Untitled Trip"}</h3>
               <p style={{color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '12px', letterSpacing: '1px', textTransform: 'uppercase'}}>{trip.subtitle || "Upcoming Journey"}</p>
-              
+
               {trip.tags && (
                 <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '24px'}}>
                   {trip.tags.slice(0, 3).map((tag, ti) => (
@@ -70,25 +70,15 @@ export default function MyTripsScreen({ onViewTrip, onSplitExpenses }) {
               )}
             </div>
 
-            <div style={{marginTop: '32px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '10px'}}>
+            <div style={{marginTop: '32px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)'}}>
               <button
                 className="btn-outline-sand"
-                style={{flex: 1, justifyContent: 'center'}}
+                style={{width: '100%', justifyContent: 'center'}}
                 onClick={() => onViewTrip && onViewTrip(trip)}
                 type="button"
               >
                 <Eye size={16} /> Read Itinerary
               </button>
-              {onSplitExpenses && (
-                <button
-                  className="btn-sand"
-                  style={{flex: 1, justifyContent: 'center'}}
-                  onClick={() => onSplitExpenses && onSplitExpenses(trip)}
-                  type="button"
-                >
-                  🧾 Split
-                </button>
-              )}
             </div>
           </div>
         ))}
