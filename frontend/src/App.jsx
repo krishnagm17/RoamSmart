@@ -84,6 +84,13 @@ export default function App() {
   const { toast, showToast } = useToast();
 
   const [rsTrip, setRsTrip] = useState(null);
+  useEffect(() => {
+    const isAuthed = auth.status === "signedIn";
+    if (isAuthed && activeTab === "login" && !auth.needsVerification && !auth.needsProfile) {
+      setActiveTab("dashboard");
+    }
+  }, [auth.status, activeTab, auth.needsVerification, auth.needsProfile]);
+
   const [groupsJoinCode, setGroupsJoinCode] = useState(() => {
     const m = window.location.hash.match(/roamgroups=([A-Za-z0-9]+)/);
     return m ? m[1] : null;
@@ -410,6 +417,8 @@ export default function App() {
     }
   }
 
+  const isAuthed = auth.status === "signedIn";
+
   // ── Auth handling ──
   // Signed-out visitors can BROWSE the public dashboard, but every feature tab
   // (plan, trips, split, groups, journal, scanner, alerts, profile) is locked:
@@ -423,14 +432,7 @@ export default function App() {
       </div>
     );
   }
-  const isAuthed = auth.status === "signedIn";
   
-  useEffect(() => {
-    if (isAuthed && activeTab === "login" && !auth.needsVerification && !auth.needsProfile) {
-      setActiveTab("dashboard");
-    }
-  }, [isAuthed, activeTab, auth.needsVerification, auth.needsProfile]);
-
   if (isAuthed && (auth.needsVerification || auth.needsProfile)) {
     return <AuthScreen />;
   }
