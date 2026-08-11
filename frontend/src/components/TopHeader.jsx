@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, Menu, X, Bell, Plane, BookOpen, ScanLine, ShieldAlert, Wallet, Map, Users, User, Radar } from 'lucide-react';
 import './TopHeader.css';
 
@@ -21,7 +21,6 @@ const navItems = [
   { id: 'journal', label: 'Journal', icon: BookOpen },
   { id: 'scanner', label: 'Scanner', icon: ScanLine },
   { id: 'sos', label: 'Alerts', icon: Bell },
-  { id: 'profile', label: 'Profile', icon: User },
 ];
 
 export default function TopHeader({ activeTab, setActiveTab, setSettingsModalOpen, unreadCount = 0, profile = null, signedIn = true }) {
@@ -106,9 +105,6 @@ export default function TopHeader({ activeTab, setActiveTab, setSettingsModalOpe
               <Settings size={18} />
             </button>
           )}
-          <button className="btn-sand nav-cta-btn" onClick={() => handleNav('plan')}>
-            Plan a trip
-          </button>
 
           {/* Hamburger (mobile) */}
           <button
