@@ -424,10 +424,17 @@ export default function App() {
     );
   }
   const isAuthed = auth.status === "signedIn";
+  
+  useEffect(() => {
+    if (isAuthed && activeTab === "login" && !auth.needsVerification && !auth.needsProfile) {
+      setActiveTab("dashboard");
+    }
+  }, [isAuthed, activeTab, auth.needsVerification, auth.needsProfile]);
+
   if (isAuthed && (auth.needsVerification || auth.needsProfile)) {
     return <AuthScreen />;
   }
-  const GATED_TABS = ["plan", "trips", "split", "groups", "profile", "scanner", "journal", "sos", "safety"];
+  const GATED_TABS = ["plan", "trips", "split", "groups", "profile", "scanner", "journal", "sos", "safety", "login"];
   const showLoginPrompt = !isAuthed && GATED_TABS.includes(activeTab);
 
   return (

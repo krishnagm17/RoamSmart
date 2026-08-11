@@ -92,7 +92,7 @@ export default function TopHeader({ activeTab, setActiveTab, setSettingsModalOpe
               <span className="nav-user-name">{(profile?.displayName || profile?.username || 'Profile').split(' ')[0]}</span>
             </button>
           ) : (
-            <button className="btn-sand nav-cta-btn" onClick={() => handleNav('profile')} title="Sign in" aria-label="Sign in">
+            <button className="btn-sand nav-cta-btn" onClick={() => handleNav('login')} title="Sign in" aria-label="Sign in">
               Sign in
             </button>
           )}
