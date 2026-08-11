@@ -39,7 +39,14 @@ const screenMotion = {
 
 export default function App() {
   const auth = useAuth();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem("roam_active_tab") || "dashboard";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("roam_active_tab", activeTab);
+  }, [activeTab]);
+
   const [screen, setScreen] = useState("form");
   const [formData, setFormData] = useState(null);
   const [itinerary, setItinerary] = useState(null);
