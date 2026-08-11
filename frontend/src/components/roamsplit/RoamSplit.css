@@ -311,3 +311,22 @@
   .rs-btns.cols-4 { grid-template-columns: repeat(4, 1fr); }
   .rs-stat-grid { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* ── Create group form & centered overlay ────────────────── */
+.rs-center-sheet {
+  align-items: center;
+  justify-content: center;
+}
+.rs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.rs-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--text-secondary, #a7b3ab);
+}

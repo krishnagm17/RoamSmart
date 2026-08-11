@@ -1,16 +1,17 @@
 import { useEffect, useState, useMemo } from "react";
-import { Plus, Wallet, Receipt, Scale, PieChart, Bell, UserRound, ArrowLeft } from "lucide-react";
+import { Plus, Wallet, Receipt, Scale, PieChart, Bell, UserRound, ArrowLeft, Trash2, X } from "lucide-react";
 import "./RoamSplit.css";
 import {
   inr, computeBalances, computeShares, suggestSettlements, tripDestinations,
 } from "./splitEngine";
 import {
   loadExpenses, loadSettlements, loadTravellers, saveTravellers,
-  loadProfile, saveProfile, loadNotifications, saveNotifications, loadTrips,
+  loadProfile, saveProfile, loadNotifications, saveNotifications,
   tripIdFor, tripLabelFor, ensureSelfInTravellers,
   currentUser, upsertExpense, deleteExpense,
   newSettlement, upsertSettlement,
   addNotification, wasOnboarded, markOnboarded,
+  loadSplitGroups, createSplitGroup, deleteSplitGroup, splitGroupToTrip,
 } from "./roomStorage";
 import ExpenseFormSheet from "./ExpenseFormSheet";
 import ExpenseList from "./ExpenseList";
@@ -25,6 +26,10 @@ import { PaymentProfileSheet } from "./PaymentProfileSheet";
 export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast }) {
   const [profile, setProfileState] = useState(loadProfile);
   const [selectedTrip, setSelectedTrip] = useState(trip || null);
+  const [splitGroups, setSplitGroups] = useState(loadSplitGroups);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: "", destination: "", startDate: "", endDate: "" });
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // group id to confirm deletion
 
   const tripId = useMemo(() => tripIdFor(selectedTrip), [selectedTrip]);
   const tripLabel = useMemo(() => tripLabelFor(selectedTrip), [selectedTrip]);
@@ -187,42 +192,136 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
     setNotifications([]);
   }
 
-  // ── Trip picker (no trip selected yet) ─────────────────────
+  // ── Split group picker (no group selected yet) ─────────────────────
   if (!tripId) {
-    const trips = loadTrips();
+    function handleCreate(e) {
+      e.preventDefault();
+      if (!createForm.name.trim()) return;
+      const group = createSplitGroup(createForm, userId);
+      setSplitGroups(loadSplitGroups());
+      setCreateForm({ name: "", destination: "", startDate: "", endDate: "" });
+      setShowCreate(false);
+      // Open the new group immediately
+      setSelectedTrip(splitGroupToTrip(group));
+      setView("overview");
+    }
+
+    function handleDelete(group) {
+      const res = deleteSplitGroup(group.id, userId);
+      if (!res.ok) { showToast(res.error, "error"); return; }
+      setSplitGroups(loadSplitGroups());
+      setDeleteConfirm(null);
+      showToast("Split group deleted", "info");
+    }
+
     return (
       <div className="rs-wrap">
         <div className="rs-head">
-          <div>
+          <div style={{ flex: 1 }}>
             <div className="rs-kicker">RoamSplit</div>
-            <h1 className="rs-title">Split a trip</h1>
-            <p className="rs-sub">Pick a journey to open its expense group.</p>
+            <h1 className="rs-title">My Split Groups</h1>
+            <p className="rs-sub">Create a group and split travel expenses with friends.</p>
           </div>
+          <button className="rs-btn rs-btn-primary" style={{ width: "auto", padding: "10px 16px", gap: 6 }}
+            type="button" onClick={() => setShowCreate(true)}>
+            <Plus size={16} /> New Group
+          </button>
         </div>
 
-        {trips.length === 0 ? (
+        {/* Create group form */}
+        {showCreate && (
+          <div className="rs-overlay rs-center-sheet" onClick={() => setShowCreate(false)}>
+            <div className="rs-card-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+              <div className="rs-sheet-handle" />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h3 className="rs-sheet-title" style={{ margin: 0 }}>Create Split Group</h3>
+                <button className="rs-back" type="button" onClick={() => setShowCreate(false)}><X size={18} /></button>
+              </div>
+              <form onSubmit={handleCreate}>
+                <div className="rs-field">
+                  <label className="rs-label">Group name *</label>
+                  <input className="rs-input" placeholder="e.g. Goa Trip 2025" value={createForm.name}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))} required />
+                </div>
+                <div className="rs-field">
+                  <label className="rs-label">Destination</label>
+                  <input className="rs-input" placeholder="e.g. Goa" value={createForm.destination}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, destination: e.target.value }))} />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div className="rs-field" style={{ flex: 1 }}>
+                    <label className="rs-label">Start date</label>
+                    <input className="rs-input" type="date" value={createForm.startDate}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, startDate: e.target.value }))} />
+                  </div>
+                  <div className="rs-field" style={{ flex: 1 }}>
+                    <label className="rs-label">End date</label>
+                    <input className="rs-input" type="date" value={createForm.endDate}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, endDate: e.target.value }))} />
+                  </div>
+                </div>
+                <button className="rs-btn rs-btn-primary" style={{ width: "100%", marginTop: 8 }} type="submit">
+                  <Plus size={16} /> Create Group
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete confirmation */}
+        {deleteConfirm && (
+          <div className="rs-overlay rs-center-sheet" onClick={() => setDeleteConfirm(null)}>
+            <div className="rs-card-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+              <div className="rs-sheet-handle" />
+              <h3 className="rs-sheet-title">Delete group?</h3>
+              <p className="rs-hint" style={{ marginTop: 4 }}>This will permanently delete <b>{deleteConfirm.name}</b> and all its expenses, settlements, and members. This cannot be undone.</p>
+              <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                <button className="rs-btn rs-btn-ghost" style={{ flex: 1 }} type="button" onClick={() => setDeleteConfirm(null)}>Cancel</button>
+                <button className="rs-btn rs-btn-primary" style={{ flex: 1, background: "rgba(239,68,68,0.85)" }} type="button"
+                  onClick={() => handleDelete(deleteConfirm)}>Yes, delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {splitGroups.length === 0 ? (
           <div className="rs-empty">
-            <div style={{ fontSize: 40 }}>🧭</div>
-            <b>No trips recorded yet</b>
-            <p>Plan an itinerary first — then open RoamSplit for that trip to start splitting expenses.</p>
+            <div style={{ fontSize: 40 }}>💸</div>
+            <b>No split groups yet</b>
+            <p>Create a group to start splitting expenses with your travel companions.</p>
             <button className="rs-btn rs-btn-primary" style={{ width: "auto", display: "inline-flex", marginTop: 16 }}
-              type="button" onClick={() => setActiveTab("plan")}>
-              Plan a trip
+              type="button" onClick={() => setShowCreate(true)}>
+              <Plus size={16} /> Create your first group
             </button>
           </div>
         ) : (
           <>
-            {trips.map((t) => {
-              const id = tripIdFor(t);
-              const tExps = id ? loadExpenses(id).length : 0;
+            {splitGroups.map((g) => {
+              const trip = splitGroupToTrip(g);
+              const tExps = loadExpenses(g.id).length;
+              const isCreator = g.creatorId === userId;
               return (
-                <div key={id || t.title} className="rs-trip-card" onClick={() => { setSelectedTrip(t); setView("overview"); }} role="button">
-                  <span className="rs-ava">{String(tripLabelFor(t)).slice(0, 1)}</span>
+                <div key={g.id} className="rs-trip-card" style={{ position: "relative", paddingRight: isCreator ? 56 : 16 }}
+                  onClick={() => { setSelectedTrip(trip); setView("overview"); }} role="button">
+                  <span className="rs-ava">{String(g.name).slice(0, 1).toUpperCase()}</span>
                   <div className="rs-trip-body">
-                    <div className="rs-trip-name">{tripLabelFor(t)}</div>
-                    <div className="rs-trip-dates">{tExps} expense{tExps === 1 ? "" : "s"} recorded</div>
+                    <div className="rs-trip-name">{g.name}</div>
+                    <div className="rs-trip-dates">
+                      {g.destination && `${g.destination} · `}{tExps} expense{tExps === 1 ? "" : "s"}
+                    </div>
                   </div>
-                  <ArrowLeft size={18} style={{ transform: "rotate(180deg)", color: "var(--text-secondary)" }} />
+                  <ArrowLeft size={18} style={{ transform: "rotate(180deg)", color: "var(--text-secondary)", flexShrink: 0 }} />
+                  {isCreator && (
+                    <button
+                      className="rs-back"
+                      type="button"
+                      style={{ position: "absolute", right: 48, top: "50%", transform: "translateY(-50%)", color: "rgba(239,68,68,0.7)" }}
+                      title="Delete group"
+                      onClick={(e) => { e.stopPropagation(); setDeleteConfirm(g); }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -242,11 +341,11 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
 
   function goBack() {
     if (view === "overview") {
-      if (!trip && selectedTrip) { setSelectedTrip(null); return; }
-      setActiveTab("dashboard");
-    } else {
-      setView("overview");
+      // Always go back to the group list
+      setSelectedTrip(null);
+      return;
     }
+    setView("overview");
   }
 
   const heading = {

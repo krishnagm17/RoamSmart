@@ -9,6 +9,7 @@ const KEYS = {
   profile: "roam_split_profile",
   notifications: "roam_split_notifications",
   onboarding: "roam_split_onboarded",
+  splitGroups: "roam_split_groups",
 };
 
 function read(key, fallback) {
@@ -199,4 +200,57 @@ export function attachReceipt(expense, dataUrl, name) {
   if (size > 1_600_000) return { error: "Receipt too large. Try a smaller image." };
   expense.receipt = dataUrl ? { dataUrl, name: name || "receipt.jpg" } : null;
   return { error: null };
+}
+
+// ---------- Standalone Split Groups (independent of itinerary trips) ----------
+
+export function loadSplitGroups() { return read(KEYS.splitGroups, []); }
+export function saveSplitGroups(list) { return write(KEYS.splitGroups, list); }
+
+export function createSplitGroup({ name, destination, startDate, endDate }, creatorId) {
+  const groups = loadSplitGroups();
+  const id = uid("sg");
+  const group = {
+    id,
+    name: String(name || "").trim(),
+    destination: String(destination || "").trim(),
+    startDate: startDate || "",
+    endDate: endDate || "",
+    creatorId,
+    createdAt: new Date().toISOString(),
+  };
+  groups.unshift(group);
+  saveSplitGroups(groups);
+  return group;
+}
+
+// Only the creator can delete a split group and all its associated data.
+export function deleteSplitGroup(groupId, requestingUserId) {
+  const groups = loadSplitGroups();
+  const group = groups.find((g) => g.id === groupId);
+  if (!group) return { ok: false, error: "Group not found." };
+  if (group.creatorId !== requestingUserId) return { ok: false, error: "Only the group creator can delete this group." };
+  // Wipe all associated expenses, settlements, and travellers
+  try { localStorage.removeItem(KEYS.expenses(groupId)); } catch {}
+  try { localStorage.removeItem(KEYS.settlers(groupId)); } catch {}
+  try { localStorage.removeItem(KEYS.travellers(groupId)); } catch {}
+  saveSplitGroups(groups.filter((g) => g.id !== groupId));
+  return { ok: true };
+}
+
+// Convert a standalone split group to the trip shape expected by the rest of the screen.
+export function splitGroupToTrip(group) {
+  return {
+    id: group.id,
+    title: group.name,
+    formData: {
+      destination: group.destination || group.name,
+      startDate: group.startDate,
+      endDate: group.endDate,
+    },
+    startDate: group.startDate,
+    endDate: group.endDate,
+    _isSplitGroup: true,
+    _creatorId: group.creatorId,
+  };
 }
