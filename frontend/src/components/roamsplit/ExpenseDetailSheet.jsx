@@ -107,11 +107,17 @@ export default function ExpenseDetailSheet({
         <div className="rs-divider" />
 
         {/* Own-share settlement shortcut */}
-        {myShare > 0.005 && expense.paidBy && expense.paidBy.uid && expense.paidBy.uid !== selfUid && (
-          <button className="rs-btn rs-btn-primary" style={{ width: "100%" }}
-            type="button" onClick={() => onSettleWith(expense.paidBy)}>
-            Settle with {expense.paidBy.name} <ArrowRight size={15} />
+        {myShare > 0.005 && payers.length === 1 && payers[0].uid !== selfUid && (
+          <button className="rs-btn rs-btn-primary" style={{ width: "100%", marginTop: 12 }}
+            type="button" onClick={() => onSettleWith(payers[0])}>
+            Settle with {payers[0].name} <ArrowRight size={15} />
           </button>
+        )}
+        
+        {payers.some((p) => p.uid === selfUid) && (
+          <div className="rs-hint" style={{ textAlign: "center", marginTop: 14 }}>
+            Since you paid for this expense, your friends will see the "Pay" option on their own devices.
+          </div>
         )}
 
         <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
