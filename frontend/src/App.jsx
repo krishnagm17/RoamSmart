@@ -39,13 +39,39 @@ const screenMotion = {
 
 export default function App() {
   const auth = useAuth();
-  const [activeTab, setActiveTab] = useState(() => {
+  const [activeTab, setRawActiveTab] = useState(() => {
     return localStorage.getItem("roam_active_tab") || "dashboard";
   });
+
+  const setActiveTab = (tab) => {
+    if (tab === activeTab) return;
+    setRawActiveTab(tab);
+    window.history.pushState({ tab }, "", `#${tab}`);
+  };
 
   useEffect(() => {
     localStorage.setItem("roam_active_tab", activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    window.history.replaceState({ tab: activeTab }, "", `#${activeTab}`);
+
+    const handlePopState = (event) => {
+      if (event.state && event.state.tab) {
+        setRawActiveTab(event.state.tab);
+      } else {
+        const hash = window.location.hash.replace("#", "");
+        if (hash && hash !== "roamgroups") {
+           setRawActiveTab(hash);
+        } else {
+           setRawActiveTab("dashboard");
+        }
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const [screen, setScreen] = useState("form");
   const [formData, setFormData] = useState(null);
