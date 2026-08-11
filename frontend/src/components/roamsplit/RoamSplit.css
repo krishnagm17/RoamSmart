@@ -8,6 +8,12 @@
   color: var(--text, #eef4f0);
 }
 
+@media (max-width: 768px) {
+  .rs-wrap {
+    padding: 12px 0 120px;
+  }
+}
+
 /* ── Header ─────────────────────────────────────────────── */
 .rs-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .rs-back {
@@ -53,6 +59,10 @@
 
 .rs-btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 14px 0; }
 .rs-btns.cols-4 { grid-template-columns: repeat(2, 1fr); }
+
+@media (max-width: 768px) {
+  .rs-btns { grid-template-columns: repeat(2, 1fr) !important; }
+}
 .rs-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; padding: 14px 10px; border-radius: 14px; cursor: pointer;

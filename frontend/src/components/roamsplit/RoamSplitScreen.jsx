@@ -412,7 +412,7 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
             </div>
           </div>
 
-          <div className="rs-btns" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, margin: "14px 0" }}>
+          <div className="rs-btns">
             <button className="rs-btn rs-btn-primary" type="button" onClick={() => setForm({ open: true, editing: null })}>
               <Plus size={16} /> Add Expense
             </button>
