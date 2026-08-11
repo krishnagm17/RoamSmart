@@ -94,7 +94,13 @@ export function currentUser(userId, profile) {
 }
 
 export function ensureSelfInTravellers(travellers, self) {
-  if (travellers.some((t) => t.id === self.id)) return travellers;
+  const existingIndex = travellers.findIndex((t) => t.id === self.id);
+  if (existingIndex >= 0) {
+    // Update existing self entry with latest profile info (like UPI ID)
+    const list = [...travellers];
+    list[existingIndex] = { ...list[existingIndex], name: self.name, upi: self.upi, isYou: true };
+    return list;
+  }
   return [{ id: self.id, name: self.name, upi: self.upi, isYou: true }, ...travellers];
 }
 
