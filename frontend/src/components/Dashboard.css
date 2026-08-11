@@ -1,4 +1,4 @@
-﻿.landing-page {
+.landing-page {
   width: 100%;
   background: #070d0a;
   color: #ffffff;
@@ -747,7 +747,13 @@
 }
 
 @media (max-width: 767px) {
-  .gt-hero { padding: 120px 5% 50px; }
+  .gt-hero { 
+    padding: 100px 5% 60px; 
+    min-height: 65vh; 
+  }
+  .gt-final {
+    padding: 60px 5%;
+  }
   .gt-cards { grid-template-columns: 1fr; }
   .gt-steps { grid-template-columns: 1fr; }
   .gt-testi-grid { grid-template-columns: 1fr; }
