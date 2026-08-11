@@ -37,6 +37,7 @@ export default function ExpenseFormSheet({
   });
 
   const [newName, setNewName] = useState("");
+  const [newUpi, setNewUpi] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const payerEdited = useRef(editing ? true : false);
@@ -115,9 +116,11 @@ export default function ExpenseFormSheet({
     const name = newName.trim();
     if (!name) return;
     const tid = uid("t");
-    if (typeof onAddTraveller === "function") onAddTraveller({ id: tid, name, upi: "" });
+    const upi = newUpi.trim();
+    if (typeof onAddTraveller === "function") onAddTraveller({ id: tid, name, upi });
     setSelectedIds((prev) => [...prev, tid]);
     setNewName("");
+    setNewUpi("");
   }
 
   function setPayerAmount(idx, value) {
@@ -262,11 +265,17 @@ export default function ExpenseFormSheet({
               </button>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <input className="rs-input" style={{ flex: 1 }} value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Add a traveller (e.g. Rahul)" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTraveller())} />
-            <button className="rs-btn rs-btn-ghost" style={{ width: "auto" }} onClick={addTraveller} type="button"><Plus size={16} /></button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input className="rs-input" style={{ flex: 1 }} value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Name (e.g. Rahul)" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTraveller())} />
+              <input className="rs-input" style={{ flex: 1 }} value={newUpi}
+                onChange={(e) => setNewUpi(e.target.value)}
+                placeholder="UPI ID (e.g. rahul@upi)" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTraveller())} />
+              <button className="rs-btn rs-btn-ghost" style={{ width: "auto" }} onClick={addTraveller} type="button"><Plus size={16} /></button>
+            </div>
+            <span style={{ fontSize: 11, color: "var(--text-secondary)", paddingLeft: 2 }}>Add UPI ID to enable direct payment (GPay, PhonePe, Paytm)</span>
           </div>
         </div>
 

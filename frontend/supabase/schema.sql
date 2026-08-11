@@ -277,7 +277,11 @@ $$;
 
 alter table public."users" enable row level security;
 drop policy if exists "users:self-read" on public."users";
+-- Allow users to read their own full profile
 create policy "users:self-read"    on public."users" for select using ("firebaseUid" = (select auth.jwt() ->> 'sub'));
+-- Allow any authenticated user to search other users' basic info (for group invite search)
+drop policy if exists "users:auth-search" on public."users";
+create policy "users:auth-search" on public."users" for select using ((select auth.jwt() ->> 'sub') is not null);
 drop policy if exists "users:self-insert" on public."users";
 create policy "users:self-insert"  on public."users" for insert with check ("firebaseUid" = (select auth.jwt() ->> 'sub'));
 drop policy if exists "users:self-update" on public."users";

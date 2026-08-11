@@ -379,17 +379,33 @@ export async function joinGroupByCode(code, self) {
     emitLocalGlobal();
     return res;
   }
-  const { data: invite } = await supabase.from("groupInvitations").select("*").eq("code", c).maybeSingle();
-  if (!invite) return { ok: false, error: "Invite link not found or has been revoked." };
+
+  // Step 1: Look up the invitation (public read — invites are not member-gated)
+  const { data: invite, error: invErr } = await supabase
+    .from("groupInvitations").select("*").eq("code", c).maybeSingle();
+  if (invErr || !invite) return { ok: false, error: "Invite link not found or has been revoked." };
   if (invite.revoked) return { ok: false, error: "Invite link has been revoked." };
-  const { data: gRow } = await supabase.from("groups").select("*").eq("id", invite.gid).maybeSingle();
+
+  const gid = invite.gid;
+
+  // Step 2: Check if already a member (member-read is allowed for own rows)
+  const { data: existing } = await supabase
+    .from("groupMembers").select("firebaseUid").eq("gid", gid).eq("firebaseUid", self.id).maybeSingle();
+
+  if (!existing) {
+    // Step 3: Insert member row FIRST — this is what satisfies the RLS check on groups:member-read
+    await supabase.from("groupMembers").insert(toMemberRow(makeActor(self, "member"), gid));
+    // Step 4: Bump memberCount
+    const { data: countRow } = await supabase
+      .from("groupMembers").select("firebaseUid", { count: "exact", head: true }).eq("gid", gid);
+    await supabase.from("groups").update({ memberCount: countRow || 1 }).eq("id", gid);
+    await addActivityLocal({ gid, uidRaw: self.id, name: self.name, icon: "👋", text: `${self.name} joined the group`, kind: "member" });
+  }
+
+  // Step 5: Now read the group — user is a member so RLS allows it
+  const { data: gRow } = await supabase.from("groups").select("*").eq("id", gid).maybeSingle();
   if (!gRow) return { ok: false, error: "Group no longer exists." };
   const group = groomGroup(rowToGroup(gRow));
-  const { data: existing } = await supabase.from("groupMembers").select("firebaseUid").eq("gid", group.id).eq("firebaseUid", self.id).maybeSingle();
-  if (existing) return { ok: true, group };
-  await supabase.from("groupMembers").insert(toMemberRow(makeActor(self, "member"), group.id));
-  await supabase.from("groups").update({ memberCount: (gRow.memberCount || 0) + 1 }).eq("id", group.id);
-  await addActivityLocal({ gid: group.id, uidRaw: self.id, name: self.name, icon: "👋", text: `${self.name} joined the group`, kind: "member" });
   return { ok: true, group };
 }
 

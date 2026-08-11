@@ -6,6 +6,7 @@ import {
   initials, avatarStyle, timeAgo, searchDemoUsers, memberFromUser, formatDate,
   buildFinalPlan, tripIdForGroup, DEMO_USERS,
 } from "./groupsEngine";
+import { searchUsers } from "../../supabase/userStore";
 import "./RoamGroups.css";
 
 const EMOJI_CHOICES = ["📍", "🏖️", "⛰️", "🏛️", "🌊", "🍜", "🏨", "🎡", "🛕", "🌄", "🪂", "🐘"];
@@ -153,16 +154,43 @@ export function InviteSheet({ group, members, self, onAddMember, onClose, onInvi
   const [q, setQ] = useState("");
   const [copied, setCopied] = useState(false);
   const [custom, setCustom] = useState({ name: "", email: "", phone: "" });
-  const results = searchDemoUsers(q);
+  const [realResults, setRealResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const demoResults = searchDemoUsers(q);
   const link = `${window.location.origin}${window.location.pathname}#roamgroups=${group.code}`;
   const added = new Set((members || []).map((m) => String(m.username || "").toLowerCase()));
+  const addedUids = new Set((members || []).map((m) => String(m.id || "")));
+
+  // Debounced search of real registered users
+  useEffect(() => {
+    if (!q.trim() || q.trim().length < 2) { setRealResults([]); return; }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      const excludeUids = (members || []).map((m) => m.id).filter(Boolean);
+      const results = await searchUsers(q.trim(), excludeUids);
+      setRealResults(results);
+      setSearching(false);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  const combinedResults = [
+    ...realResults,
+    ...demoResults.filter((d) => !realResults.some((r) => r.username === d.username)),
+  ];
 
   async function copy() {
     try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch {}
   }
   function addFromUser(u) {
-    if (added.has(String(u.username).toLowerCase())) return;
-    onAddMember(memberFromUser(u));
+    if (u.kind === "real") {
+      // Real registered user — use their Firebase UID as member ID so they can authenticate
+      if (addedUids.has(u.uid)) return;
+      onAddMember({ id: u.uid, name: u.name, username: u.username, email: u.email, phone: u.phone, avatar: u.avatar || null, upi: u.upi || "", role: "member", status: "joined", kind: "real", createdAt: new Date().toISOString() });
+    } else {
+      if (added.has(String(u.username).toLowerCase())) return;
+      onAddMember(memberFromUser(u));
+    }
   }
   function addCustom() {
     const name = custom.name.trim();
@@ -195,19 +223,27 @@ export function InviteSheet({ group, members, self, onAddMember, onClose, onInvi
       </div>
       {q.trim() && (
         <div style={{ marginBottom: 12 }}>
-          {results.length === 0 && <p className="rg-hint">No matches in the demo directory. Add them manually below.</p>}
-          {results.map((u) => (
-            <div className="rg-list-row" key={u.username}>
-              <span className="rg-ava" style={avatarStyle(u.name)}>{initials(u.name)}</span>
-              <div className="rg-list-body">
-                <div className="rg-list-name">@{u.username}</div>
-                <div className="rg-list-sub">{u.name} · {u.email} · {u.phone}</div>
+          {searching && <p className="rg-hint">Searching RoamSmart users…</p>}
+          {!searching && combinedResults.length === 0 && <p className="rg-hint">No matches. Add them manually below.</p>}
+          {combinedResults.map((u) => {
+            const isReal = u.kind === "real";
+            const isAdded = isReal ? addedUids.has(u.uid) : added.has(String(u.username).toLowerCase());
+            return (
+              <div className="rg-list-row" key={u.uid || u.username}>
+                <span className="rg-ava" style={u.avatar ? { backgroundImage: `url(${u.avatar})`, backgroundSize: "cover" } : avatarStyle(u.name)}>{!u.avatar && initials(u.name)}</span>
+                <div className="rg-list-body">
+                  <div className="rg-list-name">
+                    @{u.username}
+                    {isReal && <span style={{ marginLeft: 6, fontSize: 10, background: "rgba(16,185,129,0.15)", color: "#10b981", padding: "2px 6px", borderRadius: 6, fontWeight: 600 }}>✓ RoamSmart</span>}
+                  </div>
+                  <div className="rg-list-sub">{u.name} · {u.email} {u.phone ? `· ${u.phone}` : ""}</div>
+                </div>
+                <button className="rg-btn rg-btn-sm rg-btn-primary" disabled={isAdded} onClick={() => addFromUser(u)}>
+                  {isAdded ? "Added" : <><Plus size={13} /> Add</>}
+                </button>
               </div>
-              <button className="rg-btn rg-btn-sm rg-btn-primary" disabled={added.has(String(u.username).toLowerCase())} onClick={() => addFromUser(u)}>
-                {added.has(String(u.username).toLowerCase()) ? "Added" : <><Plus size={13} /> Add</>}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

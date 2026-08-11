@@ -173,16 +173,11 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
         )}
       </section>
 
-      {onSplitExpenses && (
+      {onOpenSafety && (
         <div style={{textAlign: 'center', marginBottom: '40px'}}>
-          <button type="button" className="btn-sand" style={{padding: '14px 28px'}} onClick={onSplitExpenses}>
-            🧾 Split Expenses with the Group
+          <button type="button" className="btn-sand" style={{padding: '14px 28px'}} onClick={onOpenSafety}>
+            🛡️ Travel Safety Check
           </button>
-          {onOpenSafety && (
-            <button type="button" className="btn-sand" style={{padding: '14px 28px', marginLeft: '12px'}} onClick={onOpenSafety}>
-              🛡️ Travel Safety Check
-            </button>
-          )}
         </div>
       )}
 

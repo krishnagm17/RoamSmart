@@ -241,3 +241,44 @@ export async function removeAvatar(uid) {
 export function notificationRefs(uid) {
   return { all: (nid) => ({ firebaseUid: uid, id: nid }) };
 }
+
+// Search registered RoamSmart users by name, username, email or phone.
+// Returns an array of lightweight user objects compatible with memberFromUser().
+export async function searchUsers(query, excludeUids = []) {
+  const q = String(query || "").trim();
+  if (!q || q.length < 2) return [];
+
+  if (!fsReady()) {
+    // In local mode, we have no user directory — return empty.
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("firebaseUid, displayName, username, email, phone, avatarUrl, upiId")
+      .or(`displayName.ilike.%${q}%,username.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+      .limit(10);
+
+    if (error) {
+      console.warn("User search failed:", error?.message || error);
+      return [];
+    }
+
+    return (data || [])
+      .filter((u) => !excludeUids.includes(u.firebaseUid))
+      .map((u) => ({
+        uid: u.firebaseUid,
+        name: u.displayName || u.username || "User",
+        username: u.username || "",
+        email: u.email || "",
+        phone: u.phone || "",
+        avatar: u.avatarUrl || null,
+        upi: u.upiId || "",
+        kind: "real",
+      }));
+  } catch (err) {
+    console.warn("User search error:", err?.message || err);
+    return [];
+  }
+}
