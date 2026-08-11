@@ -247,9 +247,26 @@ language sql stable security definer set search_path = public as $$
   );
 $$;
 
+-- True when the group is a RoamSplit container (standalone split group or a
+-- trip's split). Split containers are stored as groups rows (tagged in `data`)
+-- so the expenses/settlements FKs are satisfied, but they must NOT appear on
+-- the RoamGroups home screen. Security definer so the policy checks below can
+-- read the row without RLS.
+create or replace function public.is_split_group(p_gid text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public."groups"
+    where "id" = p_gid
+      and coalesce((data ->> '_isSplitGroup')::text, 'false') = 'true'
+  );
+$$;
+
 -- Write notifications for every un-excluded member of a group (runs as definer
 -- because members must not insert rows into another user's notifications).
-create or replace function public.notify_group(p_gid text, p_gidName text, p_text text,
+-- NOTE: the arg is p_gidname (Postgres folds unquoted identifiers to lowercase);
+-- PostgREST matches RPC argument names case-sensitively, so clients must pass
+-- p_gidname too.
+create or replace function public.notify_group(p_gid text, p_gidname text, p_text text,
   p_kind text, p_icon text, p_exclude text[])
 returns void
 language plpgsql security definer set search_path = public as $$
@@ -305,12 +322,16 @@ create policy "groupMembers:member-read" on public."groupMembers" for select usi
   public.is_group_member("gid")
   or "firebaseUid" = (select auth.jwt() ->> 'sub')
 );
--- join via a live invite, or creator/admin invites a member/demo buddy
+-- join via a live invite, or creator/admin invites a member/demo buddy.
+-- Split groups (RoamSplit) are more collaborative: any member can add other
+-- members, and a signed-in user who knows the split id can join themselves.
 drop policy if exists "groupMembers:join-or-create" on public."groupMembers";
 create policy "groupMembers:join-or-create" on public."groupMembers" for insert with check (
   ("firebaseUid" = (select auth.jwt() ->> 'sub') and exists (select 1 from public."groupInvitations" i where i."gid" = "gid" and not i."revoked"))
   or public.is_group_admin("gid")
   or exists (select 1 from public."groups" g where g."id" = "gid" and g."createdBy" = (select auth.jwt() ->> 'sub'))
+  or (public.is_group_member("gid") and public.is_split_group("gid"))
+  or ("firebaseUid" = (select auth.jwt() ->> 'sub') and public.is_split_group("gid"))
 );
 -- self update (e.g. lastReadAt) + admin/creator management (roles, member fields)
 drop policy if exists "groupMembers:update" on public."groupMembers";

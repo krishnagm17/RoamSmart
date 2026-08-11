@@ -12,7 +12,10 @@ import {
   newSettlement, upsertSettlement,
   addNotification, wasOnboarded, markOnboarded,
   loadSplitGroups, createSplitGroup, deleteSplitGroup, splitGroupToTrip,
+  ensureSplitTripRow, pullSplitTrip, subscribeSplitTrip, subscribeSplitGroups,
+  notifySplitMembers, syncTravellersToSupabase,
 } from "./roomStorage";
+import { useAuth } from "../../auth/AuthContext.jsx";
 import ExpenseFormSheet from "./ExpenseFormSheet";
 import ExpenseList from "./ExpenseList";
 import ExpenseDetailSheet from "./ExpenseDetailSheet";
@@ -25,7 +28,16 @@ import { PaymentProfileSheet } from "./PaymentProfileSheet";
 import GroupMembersView from "./GroupMembersView";
 
 export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast }) {
-  const [profile, setProfileState] = useState(loadProfile);
+  const auth = useAuth();
+  const authProfile = auth.profile || {};
+  const [profile, setProfileState] = useState(() => {
+    const local = loadProfile();
+    return {
+      displayName: authProfile.displayName || local.displayName || "",
+      upi: authProfile.upi || local.upi || "",
+      preferredApp: authProfile.preferredApp || local.preferredApp || "Google Pay",
+    };
+  });
   const [selectedTrip, setSelectedTrip] = useState(trip || null);
   const [splitGroups, setSplitGroups] = useState(loadSplitGroups);
   const [showCreate, setShowCreate] = useState(false);
@@ -50,6 +62,26 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
 
   const self = currentUser(userId, profile);
 
+  // Keep the split payment profile in sync with the signed-in account (Supabase
+  // users row) so the UPI ID shown here is always the same one from Profile.
+  useEffect(() => {
+    if (authProfile) {
+      setProfileState((p) => ({
+        ...p,
+        displayName: authProfile.displayName != null ? authProfile.displayName : p.displayName,
+        upi: authProfile.upi != null ? authProfile.upi : p.upi,
+        preferredApp: authProfile.preferredApp != null ? authProfile.preferredApp : p.preferredApp,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.profile]);
+
+  // Live list of standalone split groups this user belongs to (Supabase-backed).
+  useEffect(() => {
+    if (!userId) return () => {};
+    return subscribeSplitGroups(userId, setSplitGroups);
+  }, [userId]);
+
   function reload() {
     if (!tripId) return;
     let list = loadTravellers(tripId);
@@ -61,6 +93,29 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
   }
 
   useEffect(() => { reload(); // eslint-disable-line
+  }, [tripId]);
+
+  // Supabase sync: make sure a split container row exists, pull the shared
+  // expenses/settlements/members once, then live-update on any remote change.
+  useEffect(() => {
+    if (!tripId || !userId) return () => {};
+    const meta = {
+      name: tripLabel,
+      destination: destinations[0] || tripLabel,
+      startDate: selectedTrip?.startDate || selectedTrip?.formData?.startDate || "",
+      endDate: selectedTrip?.endDate || selectedTrip?.formData?.endDate || "",
+      userId,
+      isSplitGroup: !!selectedTrip?._isSplitGroup,
+      selfName: self.name,
+      selfUpi: self.upi,
+    };
+    ensureSplitTripRow(tripId, meta)
+      .then(() => pullSplitTrip(tripId))
+      .then(() => reload())
+      .catch(() => {});
+    const unsub = subscribeSplitTrip(tripId, () => reload());
+    return () => { if (unsub) unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
 
   function notify(message) {
@@ -78,6 +133,11 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
     if (isNew) {
       const myShare = computeShares(expense)[userId] || 0;
       notify(`${self.name} added ${expense.title} ${inr(expense.amount)}. Your share ${inr(myShare)}.`);
+      notifySplitMembers({
+        gid: tripId, gidName: tripLabel,
+        text: `${self.name} added expense ${expense.title} ${inr(expense.amount)} — your share ${inr(myShare)}`,
+        kind: "split", icon: "💰", excludeUids: [userId],
+      }).catch(() => {});
       showToast(`Expense added · your share ${inr(myShare)}`, "success");
     } else {
       notify(`${self.name} updated ${expense.title} to ${inr(expense.amount)}.`);
@@ -99,6 +159,15 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
     saveTravellers(tripId, list);
     setTravellers(list);
     notify(`${t.name} joined the split.`);
+    // Sync the member row to Supabase first, then notify the newly-added member
+    // (and the rest of the crew) so they receive it reliably.
+    syncTravellersToSupabase(tripId, list).then(() => {
+      notifySplitMembers({
+        gid: tripId, gidName: tripLabel,
+        text: `${self.name} added ${t.name} to the split`,
+        kind: "split", icon: "👋", excludeUids: [userId],
+      }).catch(() => {});
+    }).catch(() => {});
   }
 
   function onSaveProfile(p) {
@@ -142,6 +211,11 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
       settlement.upiRef = "upi://"; // only the payment direction is recorded — never credentials
       upsertSettlement(tripId, settlement);
       notify(`Payment request sent to ${target.name} for ${inr(target.amount)} via ${action.app}.`);
+      notifySplitMembers({
+        gid: tripId, gidName: tripLabel,
+        text: `${self.name} requested ${inr(target.amount)} from ${target.name} via ${action.app}`,
+        kind: "split", icon: "💸", excludeUids: [userId],
+      }).catch(() => {});
       showToast(`Opened ${action.app} for ${inr(target.amount)}`, "info");
       reload();
     }
@@ -153,6 +227,11 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
       settlement.status = "paid";
       upsertSettlement(tripId, settlement);
       notify(`You paid ${target.name} ${inr(target.amount)}.`);
+      notifySplitMembers({
+        gid: tripId, gidName: tripLabel,
+        text: `${self.name} paid ${target.name} ${inr(target.amount)}`,
+        kind: "split", icon: "✅", excludeUids: [userId],
+      }).catch(() => {});
       showToast(`Marked ${inr(target.amount)} as paid 🎉`, "success");
       reload();
     }

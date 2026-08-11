@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { inr, computeBalances } from "../roamsplit/splitEngine";
 import {
   tripIdForGroup, groupDestinations,
 } from "./groupsEngine";
 import {
   loadExpenses, saveExpenses, loadSettlements, saveSettlements, loadTravellers, saveTravellers, upsertSettlement,
+  ensureSplitTripRow, pullSplitTrip, subscribeSplitTrip,
 } from "../roamsplit/roomStorage";
 import ExpenseFormSheet from "../roamsplit/ExpenseFormSheet";
 import ExpenseList from "../roamsplit/ExpenseList";
@@ -18,6 +19,25 @@ export default function ExpensesView({ g, act }) {
   const [form, setForm] = useState(null);
   const [detail, setDetail] = useState(null);
   const [payTarget, setPayTarget] = useState(null);
+  const [, setTick] = useState(0);
+
+  // Share group expenses through Supabase and live-update when a member
+  // anywhere adds / settles an expense.
+  useEffect(() => {
+    if (!tripId || !g.self?.id) return () => {};
+    ensureSplitTripRow(tripId, {
+      name: g.group.name,
+      destination: (groupDestinations(g.group)[0]) || g.group.name,
+      startDate: g.group.startDate,
+      endDate: g.group.endDate,
+      userId: g.self.id,
+      selfName: g.self.name,
+      selfUpi: g.self.upi || "",
+      isSplitGroup: false,
+    }).then(() => pullSplitTrip(tripId)).then(() => setTick((n) => n + 1)).catch(() => {});
+    return subscribeSplitTrip(tripId, () => setTick((n) => n + 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId, g.self?.id]);
 
   if (!tripId) return <div className="rg-empty"><p>Set trip dates to enable group expenses.</p></div>;
 

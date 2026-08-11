@@ -237,7 +237,9 @@ export function subscribeUserGroups(uid, cb) {
     let groups = [];
     if (gids.length) {
       const { data: gs } = await supabase.from("groups").select("*").in("id", gids);
-      groups = gs || [];
+      // Hide RoamSplit containers (standalone split groups + per-trip splits) —
+      // they are only ever surfaced inside the RoamSplit screen.
+      groups = (gs || []).filter((g) => !(g.data && (g.data._isSplitGroup === true || g.data._isTripSplit === true)));
     }
     const byId = Object.fromEntries(groups.map((g) => [g.id, groomGroup(rowToGroup(g))]));
     const out = (links || [])
@@ -817,7 +819,7 @@ export async function notifyGroup({ gid, gidName, text, kind, icon, excludeUids 
       .concat(excludeUids);
   }
   const { error } = await supabase.rpc("notify_group", {
-    p_gid: gid, p_gid_name: gidName, p_text: text, p_kind: kind || "group", p_icon: icon || "🔔", p_exclude: exclude,
+    p_gid: gid, p_gidname: gidName, p_text: text, p_kind: kind || "group", p_icon: icon || "🔔", p_exclude: exclude,
   });
   if (error) console.warn("notify_group failed:", error?.message || error);
 }

@@ -230,8 +230,7 @@ export default function AlertSettings({ userId, onClose, showToast }) {
                 <span style={handleStyle} />
               </button>
             </div>
-
-
+          </div>
         </section>
 
         {/* Trigger Schedule */}

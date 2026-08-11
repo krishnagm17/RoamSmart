@@ -191,15 +191,47 @@ export async function claimUsername(uid, currentLower, newUsername) {
   if (error) throw error;
 }
 
+// Map the app-facing profile fields to the public.users column names.
+// Callers pass camelCase ("upi", "preferredApp"); the DB stores "upiId" /
+// "preferredPaymentApp" (see supabase/schema.sql). Without this the UPDATE
+// silently failed and UPI IDs never reached Supabase.
+export function mapProfilePatchToRow(patch = {}) {
+  const row = {};
+  if (patch.displayName != null) row.displayName = patch.displayName;
+  if (patch.username != null) row.username = patch.username;
+  if (patch.usernameLower != null) row.usernameLower = patch.usernameLower;
+  if (patch.email != null) row.email = patch.email;
+  if (patch.phone != null) row.phone = patch.phone;
+  if (patch.bio != null) row.bio = patch.bio;
+  if (patch.upi != null) row.upiId = patch.upi;
+  if (patch.preferredApp != null) row.preferredPaymentApp = patch.preferredApp;
+  if (patch.avatarUrl != null) row.avatarUrl = patch.avatarUrl;
+  return row;
+}
+
 export async function updateUserProfile(uid, patch) {
   if (!fsReady()) {
     writeLocal(uid, patch);
     return true;
   }
-  const { error } = await supabase.from("users").update({ ...patch, updatedAt: nowIso() }).eq("firebaseUid", uid);
+  const row = mapProfilePatchToRow(patch);
+  const { error } = await supabase.from("users").update({ ...row, updatedAt: nowIso() }).eq("firebaseUid", uid);
   if (error) {
     console.warn("profile update failed:", error?.message || error);
     return false;
+  }
+  // Keep every group membership's denormalized fields current so your crew
+  // (and the group member list) always sees your latest UPI ID + name.
+  if (row.upiId != null || row.displayName != null || row.preferredPaymentApp != null) {
+    const sync = {};
+    if (row.upiId != null) sync.upi = row.upiId;
+    if (row.displayName != null) sync.name = row.displayName;
+    try {
+      const { error: gmErr } = await supabase.from("groupMembers").update(sync).eq("firebaseUid", uid);
+      if (gmErr) console.warn("groupMembers profile sync failed:", gmErr?.message || gmErr);
+    } catch (err) {
+      console.warn("groupMembers profile sync error:", err?.message || err);
+    }
   }
   return true;
 }
