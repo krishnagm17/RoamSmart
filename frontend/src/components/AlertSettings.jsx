@@ -231,36 +231,7 @@ export default function AlertSettings({ userId, onClose, showToast }) {
               </button>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '13.5px', color: 'var(--text-primary)' }}>SMS alerts</strong>
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Receive text messages on your phone</span>
-              </div>
-              <button
-                type="button"
-                style={switchStyle(smsEnabled)}
-                onClick={() => setSmsEnabled(!smsEnabled)}
-                aria-label="Toggle SMS alerts"
-              >
-                <span style={handleStyle} />
-              </button>
-            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '13.5px', color: 'var(--text-primary)' }}>Telegram alerts</strong>
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Receive bot alerts on Telegram App</span>
-              </div>
-              <button
-                type="button"
-                style={switchStyle(telegramEnabled)}
-                onClick={() => setTelegramEnabled(!telegramEnabled)}
-                aria-label="Toggle Telegram alerts"
-              >
-                <span style={handleStyle} />
-              </button>
-            </div>
-          </div>
         </section>
 
         {/* Trigger Schedule */}
@@ -332,94 +303,7 @@ export default function AlertSettings({ userId, onClose, showToast }) {
           </div>
         </section>
 
-        {/* Phone number for SMS */}
-        {smsEnabled && (
-          <section style={{ paddingBottom: '8px' }}>
-            <label className="field">
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                📱 Phone Number for SMS Alerts
-              </span>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="+91XXXXXXXXXX"
-                  style={{
-                    flex: 1,
-                    border: 'none', borderBottom: '1px solid var(--border-color)', background: 'transparent',
-                    borderRadius: '0px',
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleSendDemoSms}
-                  className="btn-sand" style={{background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-primary)"}}
-                  style={{ padding: '0 12px', minHeight: '38px', fontSize: '12.5px', whiteSpace: 'nowrap' }}
-                  disabled={!phoneNumber.trim() || testingSms}
-                >
-                  {testingSms ? 'Sending...' : 'Test SMS'}
-                </button>
-              </div>
-            </label>
-          </section>
-        )}
 
-        {/* Telegram Chat ID field */}
-        {telegramEnabled && (
-          <section style={{ paddingBottom: '8px' }}>
-            <label className="field">
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                💬 Telegram Chat ID for Bot Alerts
-              </span>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                <input
-                  type="text"
-                  value={telegramChatId}
-                  onChange={(e) => setTelegramChatId(e.target.value)}
-                  placeholder="e.g. 987654321"
-                  style={{
-                    flex: 1,
-                    border: 'none', borderBottom: '1px solid var(--border-color)', background: 'transparent',
-                    borderRadius: '0px',
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleSendDemoTelegram}
-                  className="btn-sand" style={{background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-primary)"}}
-                  style={{ padding: '0 12px', minHeight: '38px', fontSize: '12.5px', whiteSpace: 'nowrap' }}
-                  disabled={!telegramChatId.trim() || testingTelegram}
-                >
-                  {testingTelegram ? 'Sending...' : 'Test Telegram'}
-                </button>
-              </div>
-            </label>
-          </section>
-        )}
-
-        {/* Simulation testing tool */}
-        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '4px', marginBottom: '12px' }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            ⚡ Testing Tools (Simulation)
-          </h4>
-          <button
-            className="btn-sand" style={{background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-primary)"}}
-            onClick={handleSimulateAlerts}
-            style={{ width: '100%', minHeight: '38px', fontSize: '12.5px', background: 'transparent', border: '1px dashed var(--text-secondary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            disabled={simulating || saving}
-            type="button"
-          >
-            <i className="ti ti-bolt" aria-hidden="true" />
-            {simulating ? 'Running Scan...' : 'Trigger Immediate Alert Scan'}
-          </button>
-        </div>
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
