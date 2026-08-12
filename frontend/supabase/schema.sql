@@ -47,7 +47,7 @@ create table if not exists public."users" (
 
 -- userProfiles (backend notification/alert preferences, FCM tokens, etc.)
 create table if not exists public."userProfiles" (
-  "id"                  text primary key,
+  "userId"              text primary key,
   "phoneNumber"         text,
   "fcmToken"            text,
   "telegramChatId"      text,
@@ -59,13 +59,13 @@ create table if not exists public."userProfiles" (
 
 alter table public."userProfiles" enable row level security;
 drop policy if exists "userProfiles:self-read" on public."userProfiles";
-create policy "userProfiles:self-read"    on public."userProfiles" for select using ("id" = (select auth.jwt() ->> 'sub'));
+create policy "userProfiles:self-read"    on public."userProfiles" for select using ("userId" = (select auth.jwt() ->> 'sub'));
 drop policy if exists "userProfiles:self-insert" on public."userProfiles";
-create policy "userProfiles:self-insert"  on public."userProfiles" for insert with check ("id" = (select auth.jwt() ->> 'sub'));
+create policy "userProfiles:self-insert"  on public."userProfiles" for insert with check ("userId" = (select auth.jwt() ->> 'sub'));
 drop policy if exists "userProfiles:self-update" on public."userProfiles";
-create policy "userProfiles:self-update"  on public."userProfiles" for update using ("id" = (select auth.jwt() ->> 'sub'));
+create policy "userProfiles:self-update"  on public."userProfiles" for update using ("userId" = (select auth.jwt() ->> 'sub'));
 drop policy if exists "userProfiles:self-delete" on public."userProfiles";
-create policy "userProfiles:self-delete"  on public."userProfiles" for delete using ("id" = (select auth.jwt() ->> 'sub'));
+create policy "userProfiles:self-delete"  on public."userProfiles" for delete using ("userId" = (select auth.jwt() ->> 'sub'));
 
 -- groups
 create table if not exists public."groups" (

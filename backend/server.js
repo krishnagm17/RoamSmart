@@ -1252,7 +1252,7 @@ app.post('/api/user/register', async (req, res) => {
       updates.activeItineraries = userProfile.activeItineraries;
     }
 
-    const { error: upsertError } = await supabase.from('userProfiles').upsert({ id: userId, ...updates }, { onConflict: 'id' });
+    const { error: upsertError } = await supabase.from('userProfiles').upsert({ userId: userId, ...updates }, { onConflict: 'userId' });
     if (upsertError) throw upsertError;
 
     res.json({ success: true });
