@@ -181,7 +181,7 @@ export function deleteExpense(tripId, expenseId, userId) {
   if (exp.creatorUid && exp.creatorUid !== userId) return false; // auth guard
   saveExpenses(tripId, list.filter((e) => e.id !== expenseId));
   if (fsReady() && tripId && exp) {
-    supabase.from("expenses").delete().eq("id", expenseId).catch(() => {});
+    supabase.from("expenses").delete().eq("id", expenseId).then(() => {}).catch(() => {});
   }
   emitSplitLocal(tripId);
   return true;
@@ -221,7 +221,7 @@ export function upsertSettlement(tripId, settlement) {
 export function deleteSettlement(tripId, id) {
   saveSettlements(tripId, loadSettlements(tripId).filter((s) => s.id !== id));
   if (fsReady() && tripId) {
-    supabase.from("settlements").delete().eq("id", id).catch(() => {});
+    supabase.from("settlements").delete().eq("id", id).then(() => {}).catch(() => {});
   }
   emitSplitLocal(tripId);
 }
@@ -270,14 +270,18 @@ export async function ensureSplitTripRow(tripId, meta) {
     // crew always sees the latest payment details. Only the creator is admin.
     if (meta?.userId) {
       const isCreator = existing.createdBy === meta.userId;
-      await supabase.from("groupMembers").upsert(
+      const { error } = await supabase.from("groupMembers").upsert(
         {
           gid: tripId, firebaseUid: meta.userId, role: isCreator ? "admin" : "member", status: "joined",
           name: meta.selfName || "", username: "", email: "", phone: "",
           avatar: null, upi: meta.selfUpi || "", joinedAt: nowIso(), lastReadAt: 0,
         },
         { onConflict: "gid,firebaseUid" },
-      ).catch((err) => console.warn("split self-member refresh failed:", err?.message || err));
+      );
+      if (error) {
+        console.error("split self-member refresh failed:", error?.message || error);
+        throw error;
+      }
     }
     return true;
   }
@@ -320,14 +324,18 @@ export async function ensureSplitTripRow(tripId, meta) {
   }
   seenTripRow.add(tripId);
   if (selfUid) {
-    await supabase.from("groupMembers").upsert(
+    const { error } = await supabase.from("groupMembers").upsert(
       {
         gid: tripId, firebaseUid: selfUid, role: "admin", status: "joined",
         name: meta?.selfName || "", username: "", email: "", phone: "",
         avatar: null, upi: meta?.selfUpi || "", joinedAt: nowIso(), lastReadAt: 0,
       },
       { onConflict: "gid,firebaseUid" },
-    ).catch((err) => console.warn("split self-member upsert failed:", err?.message || err));
+    );
+    if (error) {
+      console.error("split self-member upsert failed:", error?.message || error);
+      throw error;
+    }
   }
   return true;
 }
@@ -395,10 +403,11 @@ async function pushExpenseList(tripId, list) {
   if (!ok) return;
   for (const e of list || []) {
     if (!e?.id) continue;
-    await supabase.from("expenses").upsert(
+    const { error } = await supabase.from("expenses").upsert(
       { id: e.id, gid: tripId, data: e, createdAt: e.createdAt || nowIso() },
       { onConflict: "id" },
-    ).catch((err) => console.warn("split expense push failed:", err?.message || err));
+    );
+    if (error) console.warn("split expense push failed:", error?.message || error);
   }
 }
 
@@ -408,10 +417,11 @@ async function pushSettlementList(tripId, list) {
   if (!ok) return;
   for (const s of list || []) {
     if (!s?.id) continue;
-    await supabase.from("settlements").upsert(
+    const { error } = await supabase.from("settlements").upsert(
       { id: s.id, gid: tripId, data: s, createdAt: s.createdAt || nowIso() },
       { onConflict: "id" },
-    ).catch((err) => console.warn("split settlement push failed:", err?.message || err));
+    );
+    if (error) console.warn("split settlement push failed:", error?.message || error);
   }
 }
 
@@ -569,8 +579,8 @@ export function subscribeSplitNotifs(tripId, uid, cb) {
 // Mark this split's notifications as read in Supabase too.
 export async function markSplitNotifsRead(tripId, uid) {
   if (!fsReady() || !tripId || !uid) return;
-  await supabase.from("notifications").update({ read: true }).eq("gid", tripId).eq("firebaseUid", uid).catch((err) =>
-    console.warn("markSplitNotifsRead failed:", err?.message || err));
+  const { error } = await supabase.from("notifications").update({ read: true }).eq("gid", tripId).eq("firebaseUid", uid);
+  if (error) console.warn("markSplitNotifsRead failed:", error?.message || error);
 }
 
 // ---------- Standalone Split Groups (independent of itinerary trips) ----------

@@ -45,6 +45,28 @@ create table if not exists public."users" (
   "lastActive"        timestamptz
 );
 
+-- userProfiles (backend notification/alert preferences, FCM tokens, etc.)
+create table if not exists public."userProfiles" (
+  "id"                  text primary key,
+  "phoneNumber"         text,
+  "fcmToken"            text,
+  "telegramChatId"      text,
+  "alertPreferences"    jsonb not null default '{}'::jsonb,
+  "activeItineraries"   text[] not null default '{}',
+  "createdAt"           timestamptz not null default now(),
+  "updatedAt"           timestamptz not null default now()
+);
+
+alter table public."userProfiles" enable row level security;
+drop policy if exists "userProfiles:self-read" on public."userProfiles";
+create policy "userProfiles:self-read"    on public."userProfiles" for select using ("id" = (select auth.jwt() ->> 'sub'));
+drop policy if exists "userProfiles:self-insert" on public."userProfiles";
+create policy "userProfiles:self-insert"  on public."userProfiles" for insert with check ("id" = (select auth.jwt() ->> 'sub'));
+drop policy if exists "userProfiles:self-update" on public."userProfiles";
+create policy "userProfiles:self-update"  on public."userProfiles" for update using ("id" = (select auth.jwt() ->> 'sub'));
+drop policy if exists "userProfiles:self-delete" on public."userProfiles";
+create policy "userProfiles:self-delete"  on public."userProfiles" for delete using ("id" = (select auth.jwt() ->> 'sub'));
+
 -- groups
 create table if not exists public."groups" (
   "id"            text primary key,
@@ -479,20 +501,20 @@ grant execute on all functions in schema public to anon, authenticated;
 -- 5 · REALTIME — publish every app-data table (idempotent)
 -- ============================================================================
 do $$
-declare t text;
-begin
-  foreach t in array array[
-    'users','groups','groupMembers','groupInvitations','messages','polls','places',
-    'groupTopics','groupItineraries','finalPlans','announcements','sharedFiles','expenses',
-    'settlements','groupActivity','notifications'
-  ]
-  loop
-    begin
-      execute format('alter publication supabase_realtime add table public.%I', t);
-    exception when duplicate_object then null;
-    end;
-  end loop;
-end $$;
+  declare t text;
+  begin
+    foreach t in array array[
+      'users','userProfiles','groups','groupMembers','groupInvitations','messages','polls','places',
+      'groupTopics','groupItineraries','finalPlans','announcements','sharedFiles','expenses',
+      'settlements','groupActivity','notifications'
+    ]
+    loop
+      begin
+        execute format('alter publication supabase_realtime add table public.%I', t);
+      exception when duplicate_object then null;
+      end;
+    end loop;
+  end $$;
 
 -- ============================================================================
 -- 6 · STORAGE buckets + policies
