@@ -131,7 +131,7 @@ export function listenUserProfile(uid, cb) {
     try {
       channel = supabase
         .channel(`users:${uid}`)
-        .on("postgres_changes", { event: "*", schema: "public", table: "users", filter: `"firebaseUid"=eq.${uid}` }, fetch)
+        .on("postgres_changes", { event: "*", schema: "public", table: "users", filter: `"firebaseUid"=eq.'${uid}'` }, fetch)
         .subscribe();
       unsub = () => {
         if (channel) supabase.removeChannel(channel);

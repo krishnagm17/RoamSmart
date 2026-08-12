@@ -35,7 +35,7 @@ export function useAlerts(userId) {
         event: '*', 
         schema: 'public', 
         table: 'alerts', 
-        filter: `userId=eq.${userId}` 
+        filter: `userId=eq.'${userId}'` 
       }, (payload) => {
         // Simple strategy: just re-fetch to keep sorting/limiting robust, 
         // or we could optimistically update. Re-fetching is safer for limits.

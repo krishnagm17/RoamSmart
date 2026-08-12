@@ -197,7 +197,7 @@ export function subscribeGroup(gid, cb) {
   ];
   channel = supabase.channel(`rg:${gid}`);
   tables.forEach(([table, col]) => {
-    channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `${col}=eq.${gid}` }, () => {
+    channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `${col}=eq.'${gid}'` }, () => {
       if (!timer) timer = setTimeout(() => { timer = null; refresh(); }, 60);
     });
   });
@@ -249,7 +249,7 @@ export function subscribeUserGroups(uid, cb) {
     if (alive) cb(out);
   };
   channel = supabase.channel(`rg-user:${uid}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "groupMembers", filter: `"firebaseUid"=eq.${uid}` }, refresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "groupMembers", filter: `"firebaseUid"=eq.'${uid}'` }, refresh)
     .on("postgres_changes", { event: "*", schema: "public", table: "groups" }, refresh)
     .subscribe();
   refresh();
@@ -281,7 +281,7 @@ export function subscribeUnread(gid, cb) {
     cb((data || []).map(rowToMessage));
   };
   const channel = supabase.channel(`rg-unread:${gid}`)
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `gid=eq.${gid}` }, refresh)
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `gid=eq.'${gid}'` }, refresh)
     .subscribe();
   refresh();
   return () => {
@@ -306,7 +306,7 @@ export function subscribeUserNotifs(uid, cb) {
     cb((data || []).map((r) => ({ id: r.id, gid: r.gid, gidName: r.gidName, text: r.text, kind: r.kind, icon: r.icon, read: !!r.read, createdAt: r.createdAt })));
   };
   const channel = supabase.channel(`rg-notifs:${uid}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `"firebaseUid"=eq.${uid}` }, refresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `"firebaseUid"=eq.'${uid}'` }, refresh)
     .subscribe();
   refresh();
   return () => {
@@ -876,7 +876,7 @@ export function listenFinalPlan(gid, cb) {
     cb(data ? data.data : null);
   };
   const channel = supabase.channel(`rg-final:${gid}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "finalPlans", filter: `gid=eq.${gid}` }, refresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "finalPlans", filter: `gid=eq.'${gid}'` }, refresh)
     .subscribe();
   refresh();
   return () => {
