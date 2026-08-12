@@ -435,7 +435,7 @@ async function pushTravellers(tripId, list) {
   for (const t of list || []) {
     if (!t?.id) continue;
     const u = byUid.get(t.id);
-    await supabase.from("groupMembers").upsert(
+    const { error } = await supabase.from("groupMembers").upsert(
       {
         gid: tripId, firebaseUid: t.id, role: t.id === creatorId ? "admin" : "member", status: "joined",
         name: (u && u.displayName) || t.name || "",
@@ -444,16 +444,21 @@ async function pushTravellers(tripId, list) {
         joinedAt: nowIso(), lastReadAt: 0,
       },
       { onConflict: "gid,firebaseUid" },
-    ).catch((err) => console.warn("groupMembers upsert failed:", err?.message || err));
+    );
+    if (error) {
+      console.error("groupMembers upsert failed for", t.id, ":", error?.message || error);
+      // Don't throw - continue with other members, but log the error
+    }
   }
 }
 
 // Awaitable version of saveTravellers's Supabase push. Used before notifying a
 // newly added member so their membership row exists when the RPC runs.
 export async function syncTravellersToSupabase(tripId, list) {
-  if (!fsReady() || !tripId) return;
+  if (!fsReady() || !tripId) return { ok: true };
   await ensureSplitTripRow(tripId);
   await pushTravellers(tripId, list);
+  return { ok: true };
 }
 
 // Real-time: refetch the split whenever anyone changes expenses, settlements

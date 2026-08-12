@@ -183,19 +183,22 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
     showToast("Expense deleted", "info");
   }
 
-  function onAddTraveller(t) {
+  async function onAddTraveller(t) {
     const list = [...travellers, t];
     saveTravellers(tripId, list);
     setTravellers(list);
     notify(`${t.name} joined the split.`);
     // Sync the member row to Supabase first, then notify the newly-added member
     // (and the rest of the crew) so they receive it reliably.
-    syncTravellersToSupabase(tripId, list).then(() => {
-      notifySplitMembers({
-        gid: tripId, gidName: tripLabel,
-        text: `${self.name} added ${t.name} to the split`,
-        kind: "split", icon: "👋", excludeUids: [userId],
-      }).catch(() => {});
+    const syncResult = await syncTravellersToSupabase(tripId, list);
+    if (!syncResult.ok) {
+      showToast("Added locally but failed to sync to server. The member may not see the group until sync succeeds.", "error");
+      return;
+    }
+    notifySplitMembers({
+      gid: tripId, gidName: tripLabel,
+      text: `${self.name} added ${t.name} to the split`,
+      kind: "split", icon: "👋", excludeUids: [userId],
     }).catch(() => {});
   }
 
