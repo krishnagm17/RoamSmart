@@ -432,6 +432,7 @@ async function pushTravellers(tripId, list) {
   // Only the split creator is an admin; everyone else is a member.
   const { data: gRow } = await supabase.from("groups").select("createdBy").eq("id", tripId).maybeSingle();
   const creatorId = gRow?.createdBy;
+  const errors = [];
   for (const t of list || []) {
     if (!t?.id) continue;
     const u = byUid.get(t.id);
@@ -446,9 +447,13 @@ async function pushTravellers(tripId, list) {
       { onConflict: "gid,firebaseUid" },
     );
     if (error) {
-      console.error("groupMembers upsert failed for", t.id, ":", error?.message || error);
-      // Don't throw - continue with other members, but log the error
+      const msg = `groupMembers upsert failed for ${t.id}: ${error?.message || error}`;
+      console.error(msg);
+      errors.push(msg);
     }
+  }
+  if (errors.length) {
+    throw new Error(errors.join("; "));
   }
 }
 
@@ -456,9 +461,14 @@ async function pushTravellers(tripId, list) {
 // newly added member so their membership row exists when the RPC runs.
 export async function syncTravellersToSupabase(tripId, list) {
   if (!fsReady() || !tripId) return { ok: true };
-  await ensureSplitTripRow(tripId);
-  await pushTravellers(tripId, list);
-  return { ok: true };
+  try {
+    await ensureSplitTripRow(tripId);
+    await pushTravellers(tripId, list);
+    return { ok: true };
+  } catch (err) {
+    console.error("syncTravellersToSupabase failed:", err?.message || err);
+    return { ok: false, error: err?.message || "Failed to sync members to server" };
+  }
 }
 
 // Real-time: refetch the split whenever anyone changes expenses, settlements
