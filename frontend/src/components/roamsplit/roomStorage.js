@@ -594,7 +594,7 @@ export function createSplitGroup({ name, destination, startDate, endDate }, crea
 }
 
 // Only the creator can delete a split group and all its associated data.
-export function deleteSplitGroup(groupId, requestingUserId) {
+export async function deleteSplitGroup(groupId, requestingUserId) {
   const groups = loadSplitGroups();
   const group = groups.find((g) => g.id === groupId);
   if (!group) return { ok: false, error: "Group not found." };
@@ -605,8 +605,11 @@ export function deleteSplitGroup(groupId, requestingUserId) {
   try { localStorage.removeItem(KEYS.travellers(groupId)); } catch {}
   saveSplitGroups(groups.filter((g) => g.id !== groupId));
   if (fsReady()) {
-    supabase.from("groups").delete().eq("id", groupId).catch((err) =>
-      console.warn("deleteSplitGroup supabase failed:", err?.message || err));
+    const { error } = await supabase.from("groups").delete().eq("id", groupId);
+    if (error) {
+      console.warn("deleteSplitGroup supabase failed:", error?.message || error);
+      return { ok: false, error: "Failed to delete from server: " + (error.message || "unknown error") };
+    }
   }
   return { ok: true };
 }
