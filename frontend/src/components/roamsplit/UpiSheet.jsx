@@ -68,6 +68,15 @@ export default function UpiSheet({
 
         {recipientUpi && validateUpi(recipientUpi) ? (
           <>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ background: "white", padding: 10, borderRadius: 12, marginBottom: 8 }}>
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(`upi://pay?${query}`)}`} alt="UPI QR Code" width="140" height="140" />
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", textAlign: "center", padding: "0 20px" }}>
+                Scan to pay, or use the buttons below.
+              </div>
+            </div>
+
             <div className="rs-upi-box">
               <div>
                 <div className="rs-label" style={{ marginBottom: 3 }}>Recipient UPI ID</div>
@@ -93,7 +102,10 @@ export default function UpiSheet({
                 </button>
               ))}
             </div>
-            <button className="rs-copy-btn" type="button" onClick={copyUpi}>
+            <p style={{ fontSize: 11, color: "var(--text-secondary)", textAlign: "center", marginTop: 12, marginBottom: 0, padding: "0 10px" }}>
+              Note: PhonePe and some apps may block automated requests for security. If declined, please <strong>copy the UPI ID</strong> above and pay manually.
+            </p>
+            <button className="rs-copy-btn" type="button" onClick={copyUpi} style={{ marginTop: 16 }}>
               <Copy size={15} /> Copy UPI ID
             </button>
           </>
