@@ -251,6 +251,7 @@ export function attachReceipt(expense, dataUrl, name) {
 const splitBus = new Map();      // tripId -> Set<cb>
 const splitGroupsBus = new Set(); // cb()
 const seenTripRow = new Set();
+const pendingSplitGroups = new Set();
 
 function emitSplitLocal(tripId) {
   if (!tripId) return;
@@ -286,7 +287,7 @@ export async function ensureSplitTripRow(tripId, meta) {
     return true;
   }
   const selfUid = meta?.userId || meta?.creatorId || "";
-  const isSplitGroup = !!meta?.isSplitGroup;
+  const isSplitGroup = !!meta?.isSplitGroup || pendingSplitGroups.has(tripId);
   const row = {
     id: tripId,
     name: meta?.name || "Trip split",
@@ -609,11 +610,14 @@ export function createSplitGroup({ name, destination, startDate, endDate }, crea
   saveSplitGroups(groups);
   // Persist to Supabase so other members can be added and see the group.
   if (fsReady()) {
+    pendingSplitGroups.add(id);
     ensureSplitTripRow(id, {
       name: group.name, destination: group.destination,
       startDate: group.startDate, endDate: group.endDate,
       userId: creatorId, isSplitGroup: true,
-    }).catch((err) => console.warn("createSplitGroup sync failed:", err?.message || err));
+    })
+      .catch((err) => console.warn("createSplitGroup sync failed:", err?.message || err))
+      .finally(() => pendingSplitGroups.delete(id));
   }
   return group;
 }
