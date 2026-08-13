@@ -563,7 +563,11 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
             <div className="rs-empty">
               <div style={{ fontSize: 40 }}>💸</div>
               <b>Start the split</b>
-              <p>Tap Add Expense — dinner, petrol, a shared taxi. The fair-split math happens automatically.</p>
+              <p>Tap below to add a dinner, petrol, or shared taxi. The fair-split math happens automatically.</p>
+              <button className="rs-btn rs-btn-primary" style={{ width: "auto", display: "inline-flex", marginTop: 16 }}
+                type="button" onClick={() => setForm({ open: true, editing: null })}>
+                <Plus size={16} /> Add Expense
+              </button>
             </div>
           )}
 
