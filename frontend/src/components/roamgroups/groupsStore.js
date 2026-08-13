@@ -352,26 +352,35 @@ export async function createGroup({ data, self, withDemo = false, invited = [] }
     return g;
   }
 
-  await supabase.from("groups").insert(toGroupRow(g));
-  await supabase.from("groupMembers").insert(toMemberRow(makeActor(self, "admin"), g.id));
-  await supabase.from("groupInvitations").insert({ code: g.code, gid: g.id, createdBy: self.id, createdAt: nowIso() });
+  const { error: e1 } = await supabase.from("groups").insert(toGroupRow(g));
+  if (e1) throw e1;
+  const { error: e2 } = await supabase.from("groupMembers").insert(toMemberRow(makeActor(self, "admin"), g.id));
+  if (e2) throw e2;
+  const { error: e3 } = await supabase.from("groupInvitations").insert({ code: g.code, gid: g.id, createdBy: self.id, createdAt: nowIso() });
+  if (e3) throw e3;
   if (withDemo || invited.length) {
     const buddies = (invited && invited.length ? invited : DEMO_USERS.slice(0, 5)).map((u) => memberFromUser(u));
-    await supabase.from("messages").insert(toMessageRow(newMessage({ group: g, member: makeActor(self, "admin"), kind: "text", text: `Welcome to ${g.name}! 🎒 Let's plan this trip together — share ideas, vote and lock the itinerary as a team.` })));
+    const { error: e4 } = await supabase.from("messages").insert(toMessageRow(newMessage({ group: g, member: makeActor(self, "admin"), kind: "text", text: `Welcome to ${g.name}! 🎒 Let's plan this trip together — share ideas, vote and lock the itinerary as a team.` })));
+    if (e4) console.warn("Demo intro message failed:", e4);
+    
     for (let i = 0; i < buddies.length; i++) {
       const b = buddies[i];
-      await supabase.from("groupMembers").insert(toMemberRow(b, g.id));
+      const { error: e5 } = await supabase.from("groupMembers").insert(toMemberRow(b, g.id));
+      if (e5) console.warn("Demo member insert failed:", e5);
+      
       if (i === 0) {
         const d = new Date();
         await supabase.from("messages").insert(toMessageRow(newMessage({ group: g, member: b, kind: "text", text: `Hey! I'm so excited for ${g.destination}. I can start hunting for stays and things to do. 🌊`, createdAt: new Date(d.getTime() - 60000).toISOString() })));
       } else if (i === 1) {
-        await supabase.from("messages").insert(toMessageRow(newMessage({ group: g, member: b, kind: "text", text: "Count me in for the food tours 🍜" })));
+        await supabase.from("messages").insert(toMessageRow(newMessage({ group: g, member: b, kind: "text", text: "Count me in for the food tours 🌮" })));
       }
     }
+    
     for (let i = 0; i < ["Places to Visit", "Food", "Budget"].length; i++) {
       const name = ["Places to Visit", "Food", "Budget"][i];
       const t = newTopic(g, makeActor(self, "admin"), { name, emoji: ["📍", "🍜", "💰"][i] });
-      await supabase.from("groupTopics").insert({ id: t.id, gid: g.id, name, nameLower: String(name).toLowerCase(), emoji: ["📍", "🍜", "💰"][i], createdBy: self.id, createdAt: nowIso() });
+      const { error: e6 } = await supabase.from("groupTopics").insert({ id: t.id, gid: g.id, name, nameLower: String(name).toLowerCase(), emoji: ["📍", "🍜", "💰"][i], createdBy: self.id, createdAt: nowIso() });
+      if (e6) console.warn("Demo topic insert failed:", e6);
     }
     await supabase.from("groups").update({ memberCount: 1 + buddies.length }).eq("id", g.id);
   }
