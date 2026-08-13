@@ -473,7 +473,10 @@ function GroupsHome({ groups, self, notifs, unreadMap, onCreate, onJoin, onOpen,
                 <span className="rg-group-thumb">{grp.image ? <img src={grp.image} alt="" /> : "🎒"}</span>
                 <div className="rg-group-body">
                   <div className="rg-group-name">{grp.name}</div>
-                  <div className="rg-group-meta">{groupSubtitle(grp)} · {mcount} member{mcount === 1 ? "" : "s"}</div>
+                  <div className="rg-group-meta">
+                    {groupSubtitle(grp)} · {mcount} member{mcount === 1 ? "" : "s"}
+                    <br/><span style={{ opacity: 0.8, fontSize: "0.95em" }}>Created by {entry.members?.find((m) => m.role === "admin")?.name || entry.members?.[0]?.name || "Someone"}</span>
+                  </div>
                 </div>
                 {unread > 0 && <span className="rg-group-unread">{unread}</span>}
               </div>
@@ -520,7 +523,10 @@ function GroupView({ g, act, tab, setTab, onBack, onInvite, onSettings, onSearch
         {g.group.image && <img className="rg-cover-img" src={g.group.image} alt="" />}
         <div className="rg-cover-body">
           <h2>{g.group.name}</h2>
-          <p className="rg-sub">{groupSubtitle(g.group)}</p>
+          <p className="rg-sub">
+            {groupSubtitle(g.group)}
+            <br/><span style={{ opacity: 0.85, fontSize: "0.9em" }}>Created by {g.members?.find((m) => m.role === "admin")?.name || g.members?.[0]?.name || "Someone"}</span>
+          </p>
           <div className="rg-row" style={{ marginTop: 12, gap: 8 }}>
             {(g.members || []).slice(0, 5).map((m) => (
               <span key={m.id} className="rg-ava" title={m.name} style={m.avatar ? { backgroundImage: `url(${m.avatar})`, backgroundSize: "cover" } : avatarStyle(m.name)}>{!m.avatar && initials(m.name)}</span>
