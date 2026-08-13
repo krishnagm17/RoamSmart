@@ -211,8 +211,8 @@ export default function ExpenseFormSheet({
   const amt = Number(amount) || 0;
 
   return (
-    <div className="rs-overlay" onClick={onClose}>
-      <div className="rs-sheet" onClick={(e) => e.stopPropagation()}
+    <div className="rs-overlay rs-center-sheet" onClick={onClose} style={{ zIndex: 9999 }}>
+      <div className="rs-card-sheet" onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: "90vh", overflowY: "auto", paddingBottom: 40 }}>
         <div className="rs-sheet-handle" />
         <h3 className="rs-sheet-title">{editing ? "Edit Expense" : "Add Expense"}</h3>
