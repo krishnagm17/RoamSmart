@@ -174,7 +174,7 @@ export function computeBalances(expenses, settlements, users) {
       owed: round2(owed[id] || 0),
       received: round2((paid[id] || 0) + (settleIn[id] || 0)),
       sent: round2((owed[id] || 0) + (settleOut[id] || 0)),
-      net: round2((paid[id] || 0) - (owed[id] || 0) + (settleIn[id] || 0) - (settleOut[id] || 0)),
+      net: round2((paid[id] || 0) - (owed[id] || 0) - (settleIn[id] || 0) + (settleOut[id] || 0)),
       settledIn: round2(settleIn[id] || 0),
       settledOut: round2(settleOut[id] || 0),
     };
