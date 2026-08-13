@@ -625,7 +625,7 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
       )}
 
       {/* Floating add button */}
-      {view !== "overview" && (
+      {["expenses", "balances", "summary"].includes(view) && (
         <button className="rs-fab" type="button" aria-label="Add expense"
           onClick={() => setForm({ open: true, editing: null })}>
           <Plus size={26} />
