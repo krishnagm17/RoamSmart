@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Trash2, Camera, X, Search, Loader } from "lucide-react";
+import { Plus, Trash2, Camera, X, Loader } from "lucide-react";
 import {
   CATEGORIES, SPLIT_METHODS, inr, round2, splitError,
   compressToDataUrl, uid,
 } from "./splitEngine";
-import { searchUsers } from "../../supabase/userStore";
 
 const METHOD_LABEL = { equal: "Equal", custom: "Amount", percentage: "%", shares: "Shares" };
 
@@ -38,35 +37,7 @@ export default function ExpenseFormSheet({
     return map;
   });
 
-  // Real user search state
-  const [userSearch, setUserSearch] = useState("");
-  const [userResults, setUserResults] = useState([]);
-  const [userSearching, setUserSearching] = useState(false);
 
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const payerEdited = useRef(editing ? true : false);
-
-  const selectedTravellers = useMemo(
-    () => travellers.filter((t) => selectedIds.includes(t.id)),
-    [travellers, selectedIds],
-  );
-
-  // Debounced search for real users
-  useEffect(() => {
-    if (!userSearch.trim() || userSearch.trim().length < 2) {
-      setUserResults([]);
-      return;
-    }
-    setUserSearching(true);
-    const timer = setTimeout(async () => {
-      const existingUids = travellers.map((t) => t.id);
-      const results = await searchUsers(userSearch.trim(), existingUids);
-      setUserResults(results);
-      setUserSearching(false);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [userSearch]);
 
   // Single payer auto-syncs amount
   useEffect(() => {
@@ -132,20 +103,7 @@ export default function ExpenseFormSheet({
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
-  // Add a real registered user as a traveller
-  function addRealUser(u) {
-    // Check for duplicate
-    if (travellers.some((t) => t.id === u.uid)) {
-      showToast("This user is already in the group", "error");
-      return;
-    }
-    const newTraveller = { id: u.uid, name: u.name, upi: u.upi || "", isReal: true };
-    if (typeof onAddTraveller === "function") onAddTraveller(newTraveller);
-    setSelectedIds((prev) => [...prev, u.uid]);
-    setUserSearch("");
-    setUserResults([]);
-    showToast(`${u.name} added`, "success");
-  }
+
 
   // Add another payer from the selected travellers list
   function addPayer() {
@@ -309,70 +267,6 @@ export default function ExpenseFormSheet({
                 {t.name}
               </button>
             ))}
-            {/* Add Real User Button */}
-            <div style={{ position: "relative" }}>
-              {userSearching ? (
-                <div className="rs-chip" style={{ opacity: 0.7, paddingRight: 10 }}>
-                  <Loader size={14} style={{ animation: "spin 1s linear infinite", marginRight: 4 }} />
-                  Searching...
-                </div>
-              ) : (
-                <div className="rs-chip" style={{ padding: 0, overflow: "hidden", display: "flex" }}>
-                  <Search size={13} style={{ margin: "0 8px" }} />
-                  <input
-                    type="text"
-                    placeholder="Add user by name..."
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                    style={{
-                      background: "none", border: "none", color: "inherit", outline: "none",
-                      width: 140, fontSize: 13, padding: "8px 0"
-                    }}
-                  />
-                  {userSearching && <Loader size={14} style={{ color: "var(--text-secondary)", flexShrink: 0, animation: "spin 1s linear infinite" }} />}
-                  {userSearch && !userSearching && (
-                    <button type="button" onClick={() => { setUserSearch(""); setUserResults([]); }}
-                      style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 2 }}>
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Search Results Dropdown */}
-              {userResults.length > 0 && (
-                <div style={{
-                  position: "absolute", top: "100%", left: 0, marginTop: 4, width: 220, zIndex: 10,
-                  background: "var(--bg-card, #0f1512)", border: "1px solid var(--border, rgba(255,255,255,.1))",
-                  borderRadius: 12, boxShadow: "0 10px 25px rgba(0,0,0,0.5)", overflow: "hidden"
-                }}>
-                  {userResults.map((u) => {
-                    const alreadyAdded = travellers.some(t => t.id === u.uid);
-                    return (
-                      <div key={u.uid} style={{
-                        padding: "10px 12px", display: "flex", alignItems: "center", gap: 10,
-                        borderBottom: "1px solid var(--border, rgba(255,255,255,.05))"
-                      }}>
-                        <div className="rs-ava sm">{u.name.slice(0, 1).toUpperCase()}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.name}</div>
-                          {u.upi && <div style={{ fontSize: 10, color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.upi}</div>}
-                        </div>
-                        <button
-                          className="rs-btn rs-btn-primary"
-                          style={{ width: "auto", padding: "5px 12px", fontSize: 12 }}
-                          type="button"
-                          disabled={alreadyAdded}
-                          onClick={() => addRealUser(u)}
-                        >
-                          {alreadyAdded ? "Added" : <><Plus size={12} /> Add</>}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           </div>
           {selectedTravellers.length === 0 ? (
             <p className="rs-hint">Select at least one participant.</p>
