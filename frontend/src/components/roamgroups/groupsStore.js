@@ -306,7 +306,7 @@ export function subscribeUserNotifs(uid, cb) {
     cb((data || []).map((r) => ({ id: r.id, gid: r.gid, gidName: r.gidName, text: r.text, kind: r.kind, icon: r.icon, read: !!r.read, createdAt: r.createdAt })));
   };
   const channel = supabase.channel(`rg-notifs:${uid}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `"firebaseUid"=eq.'${uid}'` }, refresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `firebaseUid=eq.${uid}` }, refresh)
     .subscribe();
   refresh();
   return () => {
@@ -832,7 +832,8 @@ export async function markAllNotifsRead(uid) {
     return;
   }
   if (!uid) return;
-  await supabase.from("notifications").update({ read: true }).eq("firebaseUid", uid);
+  const { error } = await supabase.from("notifications").update({ read: true }).eq("firebaseUid", uid);
+  if (error) throw error;
 }
 
 export async function deleteNotif(uid, nid) {
@@ -841,7 +842,8 @@ export async function deleteNotif(uid, nid) {
     emitLocalGlobal();
     return;
   }
-  await supabase.from("notifications").delete().eq("id", nid).eq("firebaseUid", uid);
+  const { error } = await supabase.from("notifications").delete().eq("id", nid).eq("firebaseUid", uid);
+  if (error) throw error;
 }
 
 // ---------- mutes (device-local) & final plan ----------
