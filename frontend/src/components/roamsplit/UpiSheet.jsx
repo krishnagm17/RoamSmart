@@ -4,7 +4,7 @@ import { inr, validateUpi } from "./splitEngine";
 
 const APPS = [
   { id: "gpay", label: "Google Pay", color: "#4285F4", mark: "G",
-    launch: (q) => `https://pay.google.com/gp/p/ui/pay?${q}` },
+    launch: (q) => `tez://upi/pay?${q}` },
   { id: "phonepe", label: "PhonePe", color: "#5F259F", mark: "PP",
     launch: (q) => `upi://pay?${q}` },
   { id: "paytm", label: "Paytm", color: "#00BAF2", mark: "₹",
