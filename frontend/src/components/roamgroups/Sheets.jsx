@@ -353,22 +353,24 @@ export function NotifsPanel({ notifs, onMarkAll, onDismiss, onOpenGroup, onClose
         </div>
         <button className="rg-btn rg-btn-sm rg-btn-ghost" onClick={onMarkAll}>Mark all read</button>
       </div>
-      {notifs.length === 0 && <div className="rg-empty"><p>No notifications yet.</p></div>}
-      {notifs.map((n) => (
-        <div key={n.id} className={`rg-act-row ${n.read ? "" : "unread"}`}>
-          <span className="rg-act-ic">{n.icon}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p>
-              <b>{n.gidName}</b> · {n.text}
-            </p>
-            <time>{timeAgo(n.createdAt)}</time>
+      <div style={{ minHeight: "55vh" }}>
+        {notifs.length === 0 && <div className="rg-empty"><p>No notifications yet.</p></div>}
+        {notifs.map((n) => (
+          <div key={n.id} className={`rg-act-row ${n.read ? "" : "unread"}`}>
+            <span className="rg-act-ic">{n.icon}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p>
+                <b>{n.gidName}</b> · {n.text}
+              </p>
+              <time>{timeAgo(n.createdAt)}</time>
+            </div>
+            <div className="rg-row">
+              <button className="rg-icon-btn" onClick={() => n.gid && onOpenGroup(n.gid)} style={{ width: 32, height: 32 }}><Users size={14} /></button>
+              <button className="rg-icon-btn" onClick={() => onDismiss(n.id)} style={{ width: 32, height: 32 }}><X size={14} /></button>
+            </div>
           </div>
-          <div className="rg-row">
-            <button className="rg-icon-btn" onClick={() => n.gid && onOpenGroup(n.gid)} style={{ width: 32, height: 32 }}><Users size={14} /></button>
-            <button className="rg-icon-btn" onClick={() => onDismiss(n.id)} style={{ width: 32, height: 32 }}><X size={14} /></button>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </Overlay>
   );
 }
