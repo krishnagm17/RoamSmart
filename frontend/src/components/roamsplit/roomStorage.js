@@ -623,11 +623,12 @@ export function createSplitGroup({ name, destination, startDate, endDate }, crea
 }
 
 // Only the creator can delete a split group and all its associated data.
-export async function deleteSplitGroup(groupId, requestingUserId) {
-  const groups = loadSplitGroups();
-  const group = groups.find((g) => g.id === groupId);
+export async function deleteSplitGroup(group, requestingUserId) {
   if (!group) return { ok: false, error: "Group not found." };
   if (group.creatorId !== requestingUserId) return { ok: false, error: "Only the group creator can delete this group." };
+  
+  const groups = loadSplitGroups();
+  const groupId = group.id;
   // Wipe all associated expenses, settlements, and travellers
   try { localStorage.removeItem(KEYS.expenses(groupId)); } catch {}
   try { localStorage.removeItem(KEYS.settlers(groupId)); } catch {}
