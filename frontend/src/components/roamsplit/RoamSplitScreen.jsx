@@ -324,6 +324,7 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
     async function handleDelete(group) {
       const res = await deleteSplitGroup(group, userId);
       if (!res.ok) { showToast(res.error, "error"); return; }
+      setSplitGroups((prev) => prev.filter((g) => g.id !== group.id));
       setDeleteConfirm(null);
       showToast("Split group deleted", "info");
     }
