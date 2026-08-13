@@ -33,6 +33,7 @@ export const userMutesDoc = () => null;
 const groupBus = new Map(); // gid -> Set<cb(parts)>
 const msgsBus = new Map();  // gid -> Set<cb(messages)>
 const globalBus = new Set(); // cb() — groups list + notifications
+const notifsBus = new Set(); 
 
 function localParts(gid) {
   const group = local.groupById(gid);
@@ -56,6 +57,9 @@ function emitLocalGroup(gid) {
 }
 function emitLocalGlobal() {
   globalBus.forEach((cb) => cb());
+}
+export function emitNotifsRefresh() {
+  notifsBus.forEach((cb) => cb());
 }
 
 // ---------- row <-> object mappers (camelCase columns) ----------
@@ -294,8 +298,8 @@ export function subscribeUserNotifs(uid, cb) {
   if (!fsReady()) {
     const feed = () => cb(local.loadNotifs());
     feed();
-    globalBus.add(feed);
-    return () => globalBus.delete(feed);
+    notifsBus.add(feed);
+    return () => notifsBus.delete(feed);
   }
   if (!uid) return () => {};
   let alive = true;
@@ -308,9 +312,11 @@ export function subscribeUserNotifs(uid, cb) {
   const channel = supabase.channel(`rg-notifs:${uid}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `firebaseUid=eq.${uid}` }, refresh)
     .subscribe();
+  notifsBus.add(refresh);
   refresh();
   return () => {
     alive = false;
+    notifsBus.delete(refresh);
     if (channel) supabase.removeChannel(channel);
   };
 }
@@ -834,6 +840,7 @@ export async function markAllNotifsRead(uid) {
   if (!uid) return;
   const { error } = await supabase.from("notifications").update({ read: true }).eq("firebaseUid", uid);
   if (error) throw error;
+  emitNotifsRefresh();
 }
 
 export async function deleteNotif(uid, nid) {
@@ -844,6 +851,7 @@ export async function deleteNotif(uid, nid) {
   }
   const { error } = await supabase.from("notifications").delete().eq("id", nid).eq("firebaseUid", uid);
   if (error) throw error;
+  emitNotifsRefresh();
 }
 
 // ---------- mutes (device-local) & final plan ----------
