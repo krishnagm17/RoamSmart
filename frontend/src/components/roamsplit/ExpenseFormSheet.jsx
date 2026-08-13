@@ -37,7 +37,14 @@ export default function ExpenseFormSheet({
     return map;
   });
 
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const payerEdited = useRef(editing ? true : false);
 
+  const selectedTravellers = useMemo(
+    () => travellers.filter((t) => selectedIds.includes(t.id)),
+    [travellers, selectedIds],
+  );
 
   // Single payer auto-syncs amount
   useEffect(() => {
