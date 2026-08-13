@@ -531,7 +531,7 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
             </div>
             <div className="rs-hero-foot">
               {tripLabel} · {travellers.length} traveller{travellers.length === 1 ? "" : "s"}
-              <br/><span style={{ opacity: 0.8, fontSize: "0.95em" }}>Created by {travellers.find(t => t.id === selectedTrip?.creatorId)?.name || "Someone"}</span>
+              <br/><span style={{ opacity: 0.8, fontSize: "0.95em" }}>Created by {travellers.find(t => t.id === selectedTrip?.creatorId)?.name || travellers?.[0]?.name || "Someone"}</span>
             </div>
           </div>
 
