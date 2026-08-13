@@ -269,7 +269,7 @@ export function InviteSheet({ group, members, self, onAddMember, onClose, onInvi
 }
 
 // ═══ GROUP SETTINGS ════════════════════════════════════════
-export function GroupSettingsSheet({ group, self, isAdmin, onSave, onDelete, onClose }) {
+export function GroupSettingsSheet({ group, self, isAdmin, isCreator, onSave, onDelete, onClose }) {
   const [g, setG] = useState({ ...group, name: group.name, description: group.description || "", destination: group.destination || "", startDate: group.startDate, endDate: group.endDate, privacy: group.privacy, image: group.image });
   const [err, setErr] = useState("");
   const set = (k, v) => setG((p) => ({ ...p, [k]: v }));
@@ -334,7 +334,7 @@ export function GroupSettingsSheet({ group, self, isAdmin, onSave, onDelete, onC
 
       {err && <div className="rg-error" style={{ marginBottom: 10 }}>{err}</div>}
       <div className="rg-row" style={{ gap: 10 }}>
-        {isAdmin && <button className="rg-btn rg-btn-danger" onClick={() => { if (window.confirm("Delete this group and all its chats, polls and files?")) onDelete(); }}><Trash2 size={15} /> Delete</button>}
+        {isCreator && <button className="rg-btn rg-btn-danger" onClick={() => { if (window.confirm("Delete this group and all its chats, polls and files?")) onDelete(); }}><Trash2 size={15} /> Delete</button>}
         <button className="rg-btn rg-btn-ghost" style={{ flex: 1 }} onClick={onClose}>Close</button>
         {isAdmin && <button className="rg-btn rg-btn-primary" style={{ flex: 1 }} onClick={submit}>Save</button>}
       </div>

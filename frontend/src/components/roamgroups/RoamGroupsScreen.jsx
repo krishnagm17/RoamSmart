@@ -384,9 +384,10 @@ export default function RoamGroupsScreen({ joinCode, setActiveTab }) {
       )}
       {settingsOpen && group && (
         <GroupSettingsSheet group={group} self={selfRecord} isAdmin={isAdminSelf}
-          onSave={(ng) => { updateGroup(group.id, ng).then(() => { setSettingsOpen(false); showToast("Settings saved", "success"); }).catch(errToast); }}
-          onDelete={() => { deleteGroup(group.id).then(() => { setSettingsOpen(false); setActiveGid(null); showToast("Group deleted", "info"); }).catch(errToast); }}
-          onClose={() => setSettingsOpen(false)} />
+            isCreator={group.createdBy ? group.createdBy === selfRecord.id : isAdminSelf}
+            onSave={(ng) => { updateGroup(group.id, ng).then(() => { setSettingsOpen(false); showToast("Settings saved", "success"); }).catch(errToast); }}
+            onDelete={() => { deleteGroup(group.id).then(() => { setSettingsOpen(false); setActiveGid(null); showToast("Group deleted", "info"); }).catch(errToast); }}
+            onClose={() => setSettingsOpen(false)} />
       )}
       {notifsOpen && (
         <NotifsPanel notifs={notifs}
