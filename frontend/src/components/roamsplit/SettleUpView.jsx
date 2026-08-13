@@ -101,6 +101,34 @@ export default function SettleUpView({
           ))}
         </>
       )}
+
+      {(() => {
+        const completed = (settlements || []).filter((s) => s.status === "paid");
+        if (completed.length === 0) return null;
+        return (
+          <>
+            <div className="rs-section" style={{ marginTop: 20 }}>
+              <h2>Past payments</h2>
+            </div>
+            {completed.map((s) => (
+              <div key={s.id} className="rs-person">
+                <span className="rs-ava sm">{s.fromName.slice(0, 1).toUpperCase()}</span>
+                <div className="rs-person-body">
+                  <div className="rs-person-name">{s.fromName} → {s.toName}</div>
+                  <div className="rs-person-sub">{inr(s.amount)}</div>
+                </div>
+                {statusPill(s.status)}
+                {(s.fromUid === selfUid || s.toUid === selfUid) && (
+                  <button className="rs-btn rs-btn-danger" style={{ width: "auto", padding: "8px 12px", fontSize: 12, marginLeft: 8 }}
+                    type="button" onClick={() => onUpdateSettlement(s, "deleted")}>
+                    Delete
+                  </button>
+                )}
+              </div>
+            ))}
+          </>
+        );
+      })()}
     </div>
   );
 }

@@ -9,7 +9,7 @@ import {
   loadProfile, saveProfile, loadNotifications, saveNotifications,
   tripIdFor, tripLabelFor, ensureSelfInTravellers,
   currentUser, upsertExpense, deleteExpense,
-  newSettlement, upsertSettlement,
+  newSettlement, upsertSettlement, deleteSettlement,
   addNotification, wasOnboarded, markOnboarded,
   loadSplitGroups, createSplitGroup, deleteSplitGroup, splitGroupToTrip,
   ensureSplitTripRow, pullSplitTrip, subscribeSplitTrip, subscribeSplitGroups,
@@ -271,6 +271,13 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
   }
 
   function updateSettlementStatus(st, status) {
+    if (status === "deleted") {
+      deleteSettlement(tripId, st.id);
+      notify(`Deleted payment record for ${st.toName}.`);
+      reload();
+      showToast("Payment record deleted", "info");
+      return;
+    }
     st.status = status;
     upsertSettlement(tripId, st);
     if (status === "paid") notify(`You confirmed payment of ${inr(st.amount)} to ${st.toName}.`);
