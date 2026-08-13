@@ -266,6 +266,7 @@ export default function RoamSplitScreen({ trip, userId, setActiveTab, showToast 
       }).catch(() => {});
       showToast(`Marked ${inr(target.amount)} as paid 🎉`, "success");
       reload();
+      setPayTarget(null);
     }
   }
 
