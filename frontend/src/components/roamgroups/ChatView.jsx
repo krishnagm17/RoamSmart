@@ -39,7 +39,7 @@ function ChatPoll({ poll, self, onVote, isAdmin, onFinalize }) {
   const myVote = pollVoteByMember(poll, self.id);
   const winners = pollWinningIds(poll);
   return (
-    <div style={{ minWidth: 220, maxWidth: 320 }}>
+    <div style={{ minWidth: 220, maxWidth: 320 }} onClick={(e) => e.stopPropagation()}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
         <span style={{ fontSize: 16 }}>{POLL_TYPES[poll.kind]?.icon || "🗳️"}</span>
         <b style={{ fontSize: 13, lineHeight: 1.2, flex: 1, wordBreak: "break-word" }}>{poll.title}</b>
@@ -53,7 +53,7 @@ function ChatPoll({ poll, self, onVote, isAdmin, onFinalize }) {
         const chosen = myVote && myVote.optionIds.includes(o.id);
         const isWinner = closed && winners.includes(o.id);
         return (
-          <button key={o.id} onClick={() => onVote(poll, o.id)} style={{
+          <button key={o.id} onClick={(e) => { e.stopPropagation(); onVote(poll, o.id); }} style={{
             display: "flex", alignItems: "center", gap: 8, width: "100%",
             background: chosen ? "rgba(16,185,129,.22)" : "rgba(255,255,255,.05)",
             border: chosen ? "1px solid rgba(16,185,129,.5)" : "1px solid rgba(255,255,255,.1)",
@@ -67,7 +67,7 @@ function ChatPoll({ poll, self, onVote, isAdmin, onFinalize }) {
         );
       })}
       {isAdmin && !closed && (
-        <button onClick={() => onFinalize(poll)} style={{
+        <button onClick={(e) => { e.stopPropagation(); onFinalize(poll); }} style={{
           marginTop: 4, width: "100%", background: "rgba(16,185,129,.18)",
           border: "1px solid rgba(16,185,129,.4)", borderRadius: 8, padding: "6px 10px",
           color: "#34d399", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
@@ -82,7 +82,7 @@ function ChatPlace({ place, self, onVote }) {
   const meta = placeStatusMeta(place);
   const hasImg = place.images && place.images[0];
   return (
-    <div style={{ minWidth: 200, maxWidth: 300, overflow: "hidden", borderRadius: 12 }}>
+    <div style={{ minWidth: 200, maxWidth: 300, overflow: "hidden", borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
       {hasImg && <img src={place.images[0]} alt="" style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: "10px 10px 0 0", display: "block" }} />}
       <div style={{ padding: hasImg ? "8px 2px 2px" : "2px 2px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
@@ -94,7 +94,7 @@ function ChatPlace({ place, self, onVote }) {
           <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: meta.tone === "green" ? "rgba(16,185,129,.2)" : "rgba(255,255,255,.08)", color: meta.tone === "green" ? "#34d399" : "#a7b3ab", whiteSpace: "nowrap" }}>{meta.label}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-          <button onClick={() => onVote(place, "up")} style={{
+          <button onClick={(e) => { e.stopPropagation(); onVote(place, "up"); }} style={{
             display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,.06)",
             border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "5px 10px",
             color: "#eef4f0", fontSize: 12, cursor: "pointer",
