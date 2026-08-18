@@ -449,7 +449,7 @@ export default function App() {
   if (isAuthed && (auth.needsVerification || auth.needsProfile)) {
     return <AuthScreen />;
   }
-  const GATED_TABS = ["plan", "trips", "split", "groups", "profile", "scanner", "journal", "sos", "safety", "login"];
+  const GATED_TABS = ["plan", "trips", "split", "profile", "scanner", "journal", "sos", "safety", "login"];
   const showLoginPrompt = !isAuthed && GATED_TABS.includes(activeTab);
 
   return (

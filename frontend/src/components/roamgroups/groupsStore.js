@@ -397,39 +397,67 @@ export async function joinGroupByCode(code, self) {
     return res;
   }
 
-  // Step 1: Look up invitation or group directly by code
-  let gid = null;
-  const { data: invite } = await supabase
-    .from("groupInvitations").select("*").eq("code", c).maybeSingle();
-  if (invite && !invite.revoked) {
-    gid = invite.gid;
-  } else {
-    const { data: gMatch } = await supabase
-      .from("groups").select("id").eq("code", c).maybeSingle();
-    if (gMatch) gid = gMatch.id;
+  try {
+    // Step 1: Look up invitation or group directly by code
+    let gid = null;
+    const { data: invite } = await supabase
+      .from("groupInvitations").select("*").eq("code", c).maybeSingle();
+    if (invite && !invite.revoked) {
+      gid = invite.gid;
+    } else {
+      const { data: gMatch } = await supabase
+        .from("groups").select("id").eq("code", c).maybeSingle();
+      if (gMatch) gid = gMatch.id;
+    }
+
+    if (!gid) {
+      const res = local.acceptedInvite(c, self.id, self.name);
+      if (res.group) emitLocalGroup(res.group.id);
+      emitLocalGlobal();
+      if (res.ok) return res;
+      return { ok: false, error: "Invite link not found or has been revoked." };
+    }
+
+    // Step 2: Check if already a member
+    const { data: existing } = await supabase
+      .from("groupMembers").select("firebaseUid").eq("gid", gid).eq("firebaseUid", self.id).maybeSingle();
+
+    if (!existing) {
+      // Step 3: Insert member row FIRST — satisfies RLS check on groups:member-read
+      const { error: insErr } = await supabase.from("groupMembers").insert(toMemberRow(makeActor(self, "member"), gid));
+      if (insErr) {
+        console.warn("Supabase member insert error, falling back to local:", insErr);
+        const res = local.acceptedInvite(c, self.id, self.name);
+        if (res.group) emitLocalGroup(res.group.id);
+        emitLocalGlobal();
+        if (res.ok) return res;
+      } else {
+        // Step 4: Bump memberCount
+        const { data: countRow } = await supabase
+          .from("groupMembers").select("firebaseUid", { count: "exact", head: true }).eq("gid", gid);
+        await supabase.from("groups").update({ memberCount: countRow || 1 }).eq("id", gid).catch(() => {});
+        await addActivityLocal({ gid, uidRaw: self.id, name: self.name, icon: "👋", text: `${self.name} joined the group`, kind: "member" }).catch(() => {});
+      }
+    }
+
+    // Step 5: Read group row
+    const { data: gRow, error: gErr } = await supabase.from("groups").select("*").eq("id", gid).maybeSingle();
+    if (gErr || !gRow) {
+      const res = local.acceptedInvite(c, self.id, self.name);
+      if (res.group) emitLocalGroup(res.group.id);
+      emitLocalGlobal();
+      if (res.ok) return res;
+      return { ok: false, error: "Group no longer exists." };
+    }
+    const group = groomGroup(rowToGroup(gRow));
+    return { ok: true, group };
+  } catch (err) {
+    console.warn("Error in joinGroupByCode:", err);
+    const res = local.acceptedInvite(c, self.id, self.name);
+    if (res.group) emitLocalGroup(res.group.id);
+    emitLocalGlobal();
+    return res;
   }
-
-  if (!gid) return { ok: false, error: "Invite link not found or has been revoked." };
-
-  // Step 2: Check if already a member (member-read is allowed for own rows)
-  const { data: existing } = await supabase
-    .from("groupMembers").select("firebaseUid").eq("gid", gid).eq("firebaseUid", self.id).maybeSingle();
-
-  if (!existing) {
-    // Step 3: Insert member row FIRST — this is what satisfies the RLS check on groups:member-read
-    await supabase.from("groupMembers").insert(toMemberRow(makeActor(self, "member"), gid));
-    // Step 4: Bump memberCount
-    const { data: countRow } = await supabase
-      .from("groupMembers").select("firebaseUid", { count: "exact", head: true }).eq("gid", gid);
-    await supabase.from("groups").update({ memberCount: countRow || 1 }).eq("id", gid);
-    await addActivityLocal({ gid, uidRaw: self.id, name: self.name, icon: "👋", text: `${self.name} joined the group`, kind: "member" });
-  }
-
-  // Step 5: Now read the group — user is a member so RLS allows it
-  const { data: gRow } = await supabase.from("groups").select("*").eq("id", gid).maybeSingle();
-  if (!gRow) return { ok: false, error: "Group no longer exists." };
-  const group = groomGroup(rowToGroup(gRow));
-  return { ok: true, group };
 }
 
 // ---------- messages ----------
