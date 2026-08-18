@@ -54,6 +54,7 @@ function sanitizeTab(tab) {
 
 export default function App() {
   const auth = useAuth();
+  const { toast, showToast } = useToast();
   const [activeTab, setActiveTabState] = useState(() => {
     const code = parseInviteCode();
     if (code) return "groups";
