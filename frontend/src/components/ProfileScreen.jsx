@@ -153,6 +153,19 @@ export default function ProfileScreen({ showToast }) {
     }
   }
 
+  async function testTelegramAlert() {
+    if (!user) return;
+    setTgBusy(true);
+    try {
+      await api.post("/api/telegram/test-alert", { userId: user.uid });
+      flash("ok", "Test alert sent! Check your Telegram.");
+    } catch {
+      flash("err", "Could not send test alert.");
+    } finally {
+      setTgBusy(false);
+    }
+  }
+
   function copyTgLink() {
     if (!tgLink) return;
     navigator.clipboard?.writeText(tgLink);
@@ -251,10 +264,17 @@ export default function ProfileScreen({ showToast }) {
 
         {tgStatus.connected ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <span style={{ color: "#1e8e3e", fontSize: 13, fontWeight: 600 }}>✅ Connected — alerts will arrive on your chat.</span>
-            <button className="auth-btn ghost" onClick={disconnectTelegram} disabled={tgBusy} style={{ width: "auto", padding: "8px 14px" }}>
-              Disconnect
-            </button>
+            <span style={{ color: "#1e8e3e", fontSize: 13, fontWeight: 600 }}>
+              ✅ Connected {tgStatus.username ? `(@${tgStatus.username})` : ''} — alerts will arrive on your chat.
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="auth-btn secondary" onClick={testTelegramAlert} disabled={tgBusy} style={{ width: "auto", padding: "8px 14px", background: "var(--primary)", color: "white", border: "none" }}>
+                Test Alert
+              </button>
+              <button className="auth-btn ghost" onClick={disconnectTelegram} disabled={tgBusy} style={{ width: "auto", padding: "8px 14px" }}>
+                Disconnect
+              </button>
+            </div>
           </div>
         ) : tgLink ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
