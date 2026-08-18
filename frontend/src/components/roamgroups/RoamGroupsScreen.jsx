@@ -453,7 +453,19 @@ function uid2() {
 
 function GroupsHome({ groups, self, notifs, unreadMap, onCreate, onJoin, onOpen, onNotifs, unreadCount }) {
   useEffect(() => {
-    groups.forEach(g => deleteGroup(g.gid));
+    async function nukeEverything() {
+      // 1. Wipe all local groups
+      const gids = JSON.parse(localStorage.getItem("roam_local_groups") || "[]");
+      gids.forEach(gid => localStorage.removeItem(`roam_group_${gid}`));
+      localStorage.removeItem("roam_local_groups");
+      localStorage.removeItem("roam_local_invites");
+      
+      // 2. Wipe supabase groups using existing imported function
+      groups.forEach(async (g) => {
+        await deleteGroup(g.gid);
+      });
+    }
+    nukeEverything();
   }, [groups]);
   return (
     <div className="rg-groups-pad">
