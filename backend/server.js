@@ -1649,6 +1649,29 @@ app.get('/api/conditions/:destination', async (req, res) => {
 // ── Telegram connect / status / disconnect / preferences ────────────────────
 const { createConnectLink } = require('./telegramService');
 
+app.post('/api/telegram/webhook', async (req, res) => {
+  try {
+    const { handleBotMessage } = require('./telegramService');
+    const update = req.body;
+    
+    // Telegram sends updates; we only care about messages
+    if (update && update.message) {
+      const reply = await handleBotMessage(update.message);
+      if (reply) {
+        const chatId = update.message.chat.id;
+        const { sendTelegramMessage } = require('./telegramService');
+        await sendTelegramMessage(chatId, reply);
+      }
+    }
+    
+    // Always return 200 OK so Telegram knows we received it
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Telegram webhook error:', err);
+    res.sendStatus(200); // Still return 200 to stop Telegram from retrying on error
+  }
+});
+
 app.post('/api/telegram/connect', async (req, res) => {
   try {
     const { userId } = req.body || {};
@@ -1707,14 +1730,17 @@ app.post('/api/telegram/test-alert', async (req, res) => {
 app.get('/api/telegram/status/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { data: profile, error } = await supabase
-      .from('userProfiles')
-      .select('telegramChatId')
-      .eq('userId', userId)
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('telegram')
+      .eq('firebaseUid', userId)
       .maybeSingle();
     if (error) throw error;
+    
     res.json({
-      connected: !!(profile && profile.telegramChatId),
+      connected: !!(user && user.telegram && user.telegram.connected),
+      telegramUserId: user?.telegram?.telegramUserId,
+      username: user?.telegram?.username,
       botUsername: (process.env.TELEGRAM_BOT_USERNAME || 'RoamSmartBot').replace('@', ''),
     });
   } catch (err) {
@@ -1727,6 +1753,9 @@ app.post('/api/telegram/disconnect', async (req, res) => {
   try {
     const { userId } = req.body || {};
     if (!userId) return res.status(400).json({ error: 'userId is required' });
+    
+    await supabase.from('users').update({ telegram: { connected: false } }).eq('firebaseUid', userId);
+    
     const { error } = await supabase
       .from('userProfiles')
       .update({ telegramChatId: null })

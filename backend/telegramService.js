@@ -86,24 +86,49 @@ async function createConnectLink(userId) {
 }
 
 // ── resolve /start token (called by the bot webhook / polling loop) ──────────
-async function handleStartCommand(token, chatId) {
+async function handleStartCommand(token, message) {
+  const chatId = String(message.chat.id);
+  const telegramUserId = String(message.from.id);
+  const username = message.from.username || '';
+
   const userId = consumeConnectToken(token);
   if (!userId) return 'This link has expired. Open the app and tap "Connect Telegram" to get a fresh link.';
 
+  const telegramData = {
+    connected: true,
+    chatId: chatId,
+    telegramUserId: telegramUserId,
+    username: username,
+    connectedAt: new Date().toISOString()
+  };
+
   const { error } = await supabase
+    .from('users')
+    .update({ telegram: telegramData })
+    .eq('firebaseUid', userId);
+
+  // Keep userProfiles synced for older backend logic
+  await supabase
     .from('userProfiles')
     .update({ telegramChatId: String(chatId) })
     .eq('userId', userId);
+
   if (error) return 'Could not save your chat. Please try again.';
 
-  return `✅ Connected! You will now receive travel & hazard alerts here.\n\nTurn them on/off any time from Settings → Alerts.`;
+  return `✅ RoamSmart Telegram Connected!\nYou will now receive important RoamSmart alerts here.\nYou can manage your notification preferences from the RoamSmart website.`;
 }
 
 async function handleDisconnectCommand(chatId) {
+  await supabase
+    .from('users')
+    .update({ telegram: { connected: false } })
+    .eq('telegram->>chatId', String(chatId));
+
   const { error } = await supabase
     .from('userProfiles')
     .update({ telegramChatId: null })
     .eq('telegramChatId', String(chatId));
+    
   if (error) return 'Could not disconnect. Please try again.';
   return '🔌 Disconnected. Travel alerts will no longer be sent here.';
 }
@@ -116,7 +141,7 @@ async function handleBotMessage(message) {
 
   if (text.startsWith('/start')) {
     const token = text.split(/\s+/)[1] || '';
-    return handleStartCommand(token, chatId);
+    return handleStartCommand(token, message);
   }
   if (text === '/stop' || text === '/disconnect') {
     return handleDisconnectCommand(chatId);
