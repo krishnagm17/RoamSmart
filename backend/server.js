@@ -1573,6 +1573,7 @@ app.get('/api/hazards', async (req, res) => {
 app.post('/api/travel-conditions', async (req, res) => {
   try {
     const { destination, latitude, longitude, date } = req.body || {};
+    console.log("[DEBUG] travel-conditions called with destination:", destination, "date:", date);
     if (!destination) return res.status(400).json({ error: 'destination is required' });
 
     const { assessDestination } = require('./travelRiskEngine');
@@ -1657,6 +1658,48 @@ app.post('/api/telegram/connect', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Telegram connect error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/telegram/save-chat-id', async (req, res) => {
+  try {
+    const { userId, chatId } = req.body || {};
+    if (!userId || !chatId) return res.status(400).json({ error: 'userId and chatId are required' });
+    
+    // Check if userProfiles row exists first
+    const { data: profile } = await supabase.from('userProfiles').select('userId').eq('userId', userId).maybeSingle();
+    let error;
+    if (profile) {
+      const res = await supabase.from('userProfiles').update({ telegramChatId: String(chatId).trim() }).eq('userId', userId);
+      error = res.error;
+    } else {
+      const res = await supabase.from('userProfiles').insert({ userId, telegramChatId: String(chatId).trim() });
+      error = res.error;
+    }
+    
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Telegram save-chat-id error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/telegram/test-alert', async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    
+    const { data: profile } = await supabase.from('userProfiles').select('telegramChatId').eq('userId', userId).maybeSingle();
+    if (!profile || !profile.telegramChatId) return res.status(400).json({ error: 'No Telegram Chat ID connected' });
+
+    const { sendTelegramMessage } = require('./telegramService');
+    const result = await sendTelegramMessage(profile.telegramChatId, '🔔 *Test Alert from RoamSmart*\n\nYour Telegram is successfully connected! You will now receive live travel safety and hazard alerts here.');
+    
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error('Telegram test-alert error:', err);
     res.status(500).json({ error: err.message });
   }
 });
