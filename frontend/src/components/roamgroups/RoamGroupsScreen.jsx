@@ -452,9 +452,6 @@ function uid2() {
 }
 
 function GroupsHome({ groups, self, notifs, unreadMap, onCreate, onJoin, onOpen, onNotifs, unreadCount }) {
-  useEffect(() => {
-    groups.forEach(g => deleteGroup(g.gid));
-  }, [groups]);
   return (
     <div className="rg-groups-pad">
       <div className="rg-head">
