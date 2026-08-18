@@ -1728,7 +1728,8 @@ app.post('/api/telegram/test-alert', async (req, res) => {
     if (!chatId) return res.status(400).json({ error: 'No Telegram Chat ID connected' });
 
     const { sendTelegramMessage } = require('./telegramService');
-    const result = await sendTelegramMessage(chatId, '🚨 *Test Alert from RoamSmart*\n\nYour Telegram is successfully connected! You will now receive live travel safety and hazard alerts here.');
+    const demoMsg = "🚨 TEST HAZARD ALERT — Your Itinerary Activity, Paris tomorrow (Day 1). Heavy rainfall expected. Bring a sturdy umbrella and plan indoor alternatives just in case.\n\n_(This is exactly how real travel warnings will arrive!)_";
+    const result = await sendTelegramMessage(chatId, demoMsg);
     
     res.json({ success: true, result });
   } catch (err) {
