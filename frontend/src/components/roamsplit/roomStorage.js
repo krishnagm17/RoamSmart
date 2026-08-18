@@ -509,9 +509,9 @@ export function subscribeSplitTrip(tripId, cb) {
     }
   };
   channel = supabase.channel(`rs:${tripId}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `gid=eq.'${tripId}'` }, refresh)
-    .on("postgres_changes", { event: "*", schema: "public", table: "settlements", filter: `gid=eq.'${tripId}'` }, refresh)
-    .on("postgres_changes", { event: "*", schema: "public", table: "groupMembers", filter: `gid=eq.'${tripId}'` }, refresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `gid=eq.${tripId}` }, refresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "settlements", filter: `gid=eq.${tripId}` }, refresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "groupMembers", filter: `gid=eq.${tripId}` }, refresh)
     .subscribe();
   return () => {
     alive = false;
@@ -568,7 +568,7 @@ export function subscribeSplitNotifs(tripId, uid, cb) {
     if (alive) cb(list);
   };
   channel = supabase.channel(`rs-notifs:${tripId}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `gid=eq.'${tripId}'` }, refresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `gid=eq.${tripId}` }, refresh)
     .subscribe();
   refresh();
   return () => {
@@ -693,7 +693,7 @@ export function subscribeSplitGroups(userId, cb) {
     if (alive) cb(merged);
   };
   channel = supabase.channel(`rs-groups:${userId}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "groupMembers", filter: `"firebaseUid"=eq.'${userId}'` }, refresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "groupMembers", filter: `firebaseUid=eq.${userId}` }, refresh)
     .on("postgres_changes", { event: "*", schema: "public", table: "groups" }, refresh)
     .subscribe();
   refresh();
