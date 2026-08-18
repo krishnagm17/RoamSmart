@@ -29,15 +29,20 @@ export function parseInviteCode(input) {
   if (!str) return null;
   str = String(str).trim();
 
+  const TAB_KEYWORDS = ["DASHBOARD", "TRIPS", "SPLIT", "GROUPS", "PROFILE", "SCANNER", "JOURNAL", "SAFETY", "ALERTS", "PLAN", "SOS"];
+
   // 1. Match roamgroups=CODE, invite=CODE, join=CODE, code=CODE in URL/string
   const match = str.match(/(?:roamgroups|invite|join|code)[=\/]([A-Za-z0-9]+)/i);
   if (match && match[1]) {
-    return match[1].toUpperCase();
+    const code = match[1].toUpperCase();
+    if (!TAB_KEYWORDS.includes(code)) {
+      return code;
+    }
   }
 
   // 2. Direct code string check (6-12 alphanumeric characters)
   const cleanStr = str.replace(/^#/, "").replace(/^\?/, "");
-  if (/^[A-Za-z0-9]{6,12}$/.test(cleanStr) && !["DASHBOARD", "TRIPS", "SPLIT", "GROUPS", "PROFILE", "SCANNER", "JOURNAL", "SAFETY", "ALERTS"].includes(cleanStr.toUpperCase())) {
+  if (/^[A-Za-z0-9]{6,12}$/.test(cleanStr) && !TAB_KEYWORDS.includes(cleanStr.toUpperCase())) {
     return cleanStr.toUpperCase();
   }
 

@@ -38,18 +38,40 @@ const screenMotion = {
   transition: { duration: 0.35, ease: "easeOut" }
 };
 
+const VALID_TABS = ["dashboard", "plan", "trips", "split", "groups", "profile", "scanner", "journal", "safety", "sos", "alerts"];
+
+function sanitizeTab(tab) {
+  if (!tab) return "dashboard";
+  const clean = String(tab).replace(/^#/, "").trim();
+  if (clean === "groups" || clean.startsWith("roamgroups") || clean.startsWith("invite") || clean.startsWith("join")) {
+    return "groups";
+  }
+  if (VALID_TABS.includes(clean)) {
+    return clean;
+  }
+  return "dashboard";
+}
+
 export default function App() {
   const auth = useAuth();
-  const [activeTab, setRawActiveTab] = useState(() => {
+  const [activeTab, setActiveTabState] = useState(() => {
     const code = parseInviteCode();
     if (code) return "groups";
-    return localStorage.getItem("roam_active_tab") || "dashboard";
+    const stored = localStorage.getItem("roam_active_tab");
+    return sanitizeTab(stored);
   });
 
+  const setRawActiveTab = (tab) => {
+    const target = sanitizeTab(tab);
+    setActiveTabState(target);
+    localStorage.setItem("roam_active_tab", target);
+  };
+
   const setActiveTab = (tab) => {
-    if (tab === activeTab) return;
-    setRawActiveTab(tab);
-    window.history.pushState({ tab }, "", `#${tab}`);
+    const target = sanitizeTab(tab);
+    if (target === activeTab) return;
+    setRawActiveTab(target);
+    window.history.pushState({ tab: target }, "", `#${target}`);
   };
 
   useEffect(() => {
@@ -71,11 +93,7 @@ export default function App() {
       } else {
         const rawHash = window.location.hash.replace("#", "");
         if (rawHash) {
-          if (rawHash === "groups" || rawHash.startsWith("roamgroups") || rawHash.startsWith("invite")) {
-            setRawActiveTab("groups");
-          } else if (["dashboard", "trips", "split", "profile", "scanner", "journal", "safety", "alerts"].includes(rawHash)) {
-            setRawActiveTab(rawHash);
-          }
+          setRawActiveTab(rawHash);
         }
       }
     };
@@ -408,7 +426,7 @@ export default function App() {
         );
 
       default:
-        return null;
+        return <Dashboard setActiveTab={setActiveTab} onStartPlan={startPlan} />;
     }
   }
 
