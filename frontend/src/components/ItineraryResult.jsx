@@ -289,9 +289,10 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
                     <h3 className="font-display" style={{fontSize: '28px', color: 'var(--text-primary)', marginTop: '8px'}}>{day.theme}</h3>
                   </header>
               <DayConditionStrip
-                destination={day.destination || formData?.destination}
-                date={formData?.startDate}
+                destination={day.destination || effectiveFormData.destination}
+                date={effectiveFormData.startDate}
                 showToast={showToast}
+                api={api}
               />
               <div style={{background: 'rgba(212, 184, 134, 0.1)', padding: '16px', borderRadius: '12px', display: 'flex', gap: '12px', marginBottom: '32px', color: 'var(--text-secondary)'}}>
                 <i className="ti ti-bulb text-sand" style={{fontSize: '20px'}} aria-hidden="true" />
@@ -663,7 +664,7 @@ function CrowdOverviewCard({ itinerary, predictions, formData }) {
 }
 
 // Live travel-condition strip for one day's destination.
-function DayConditionStrip({ destination, date, showToast }) {
+function DayConditionStrip({ destination, date, showToast, api }) {
   const [state, setState] = useState({ loading: false, data: null, error: "" });
 
   useEffect(() => {
