@@ -47,9 +47,8 @@ function getBotToken() {
 }
 
 function buildDeepLink(token) {
-  const botName = (process.env.TELEGRAM_BOT_USERNAME || '').replace('@', '');
-  const base = botName ? `https://t.me/${botName}` : `https://t.me/YourBotUsername`;
-  return `${base}?start=${token}`;
+  const botName = (process.env.TELEGRAM_BOT_USERNAME || 'RoamSmartBot').replace('@', '');
+  return `https://t.me/${botName}?start=${token}`;
 }
 
 // ── token management ──────────────────────────────────────────────────────────
