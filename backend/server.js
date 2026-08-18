@@ -1714,11 +1714,21 @@ app.post('/api/telegram/test-alert', async (req, res) => {
     const { userId } = req.body || {};
     if (!userId) return res.status(400).json({ error: 'userId is required' });
     
-    const { data: profile } = await supabase.from('userProfiles').select('telegramChatId').eq('userId', userId).maybeSingle();
-    if (!profile || !profile.telegramChatId) return res.status(400).json({ error: 'No Telegram Chat ID connected' });
+    // First try to get it from the robust new 'users' JSONB column
+    let chatId = null;
+    const { data: user } = await supabase.from('users').select('telegram').eq('firebaseUid', userId).maybeSingle();
+    if (user && user.telegram && user.telegram.chatId) {
+      chatId = user.telegram.chatId;
+    } else {
+      // Fallback to legacy userProfiles table just in case
+      const { data: profile } = await supabase.from('userProfiles').select('telegramChatId').eq('userId', userId).maybeSingle();
+      if (profile && profile.telegramChatId) chatId = profile.telegramChatId;
+    }
+
+    if (!chatId) return res.status(400).json({ error: 'No Telegram Chat ID connected' });
 
     const { sendTelegramMessage } = require('./telegramService');
-    const result = await sendTelegramMessage(profile.telegramChatId, '🔔 *Test Alert from RoamSmart*\n\nYour Telegram is successfully connected! You will now receive live travel safety and hazard alerts here.');
+    const result = await sendTelegramMessage(chatId, '🚨 *Test Alert from RoamSmart*\n\nYour Telegram is successfully connected! You will now receive live travel safety and hazard alerts here.');
     
     res.json({ success: true, result });
   } catch (err) {
