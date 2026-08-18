@@ -168,8 +168,9 @@ export function useDayPhotos(destination, activities, tripId, dayNumber) {
 
     fetchDayPhotos();
 
-    const channel = supabase.channel(`public:photos`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'photos' }, payload => {
+    const channelName = `photos_${tripId || 'day'}_${dayNumber || 1}_${Math.random().toString(36).slice(2, 8)}`;
+    const channel = supabase.channel(channelName)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'photos' }, () => {
         fetchDayPhotos();
       })
       .subscribe();
