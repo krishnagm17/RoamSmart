@@ -217,6 +217,17 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
     deletePoll: (poll) => { deletePoll(group.id, poll.id).catch(errToast); log("🗑️", `deleted poll "${poll.title}"`, "poll"); },
     addPoll: (data) => {
       addPoll({ group, member: selfRecord, ...data }).then((poll) => {
+        if (poll) {
+          // Optimistic: show poll in polls list and as a chat message immediately
+          const pollMsg = {
+            id: "opt_pm_" + poll.id,
+            gid: group.id, uid: selfRecord.id, name: selfRecord.username || selfRecord.name,
+            kind: "poll", pollId: poll.id, text: poll.title || "",
+            replyTo: null, mentions: [], reactions: {}, pinned: false, edited: false,
+            status: "sent", createdAt: poll.createdAt || new Date().toISOString(),
+          };
+          setParts((p) => p ? { ...p, polls: [poll, ...(p.polls || [])], messages: [pollMsg, ...(p.messages || [])] } : p);
+        }
         log("🗳️", `created poll "${data.title}"`, "poll");
         notify(`New poll: "${data.title}" — vote now!`, "poll", "🗳️");
       }).catch(errToast);
@@ -256,6 +267,17 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
     addPlaceToPoll: (place) => act.createPollFromPlace(place),
     addPlace: (data) => {
       addPlace({ group, member: selfRecord, data }).then((place) => {
+        if (place) {
+          // Optimistic: show place in places list and as a chat message immediately
+          const placeMsg = {
+            id: "opt_plm_" + place.id,
+            gid: group.id, uid: selfRecord.id, name: selfRecord.username || selfRecord.name,
+            kind: "place", placeId: place.id, text: place.name || "",
+            replyTo: null, mentions: [], reactions: {}, pinned: false, edited: false,
+            status: "sent", createdAt: place.createdAt || new Date().toISOString(),
+          };
+          setParts((p) => p ? { ...p, places: [place, ...(p.places || [])], messages: [placeMsg, ...(p.messages || [])] } : p);
+        }
         log("📍", `suggested ${place.name}`, "place");
         notify(`${selfRecord.username || selfRecord.name} suggested "${place.name}"`, "place", "📍");
       }).catch(errToast);
@@ -541,8 +563,6 @@ function GroupView({ g, act, tab, setTab, onBack, onInvite, onSettings, onSearch
     { id: "polls", label: "Polls", icon: Vote },
     { id: "itinerary", label: "Itinerary", icon: CalendarRange },
     { id: "expenses", label: "Expenses", icon: Wallet },
-    { id: "files", label: "Files", icon: FolderOpen },
-    { id: "announcements", label: "Announcements", icon: Megaphone },
     { id: "members", label: "Members", icon: Users },
   ];
   const bottomTabs = ["chat", "places", "polls", "itinerary", "members"];

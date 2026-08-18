@@ -39,22 +39,40 @@ function ChatPoll({ poll, self, onVote, isAdmin, onFinalize }) {
   const myVote = pollVoteByMember(poll, self.id);
   const winners = pollWinningIds(poll);
   return (
-    <div className="rg-poll-card" style={{ borderColor: "rgba(16,185,129,.35)", background: "rgba(16,185,129,.06)" }}>
-      <div className="rg-poll-title" style={{ fontSize: 13.5 }}>{POLL_TYPES[poll.kind]?.icon} {poll.title}</div>
-      <div className="rg-poll-meta">{total} vote{total === 1 ? "" : "s"} · {closed ? "closed" : "open"}</div>
-      {(poll.options || []).slice(0, 5).map((o) => {
+    <div style={{ minWidth: 220, maxWidth: 320 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <span style={{ fontSize: 16 }}>{POLL_TYPES[poll.kind]?.icon || "🗳️"}</span>
+        <b style={{ fontSize: 13, lineHeight: 1.2, flex: 1, wordBreak: "break-word" }}>{poll.title}</b>
+      </div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,.5)", marginBottom: 8 }}>
+        {total} vote{total === 1 ? "" : "s"} · {closed ? "✅ closed" : "🔓 open"}
+      </div>
+      {(poll.options || []).slice(0, 4).map((o) => {
         const c = pollOptionCount(poll, o.id);
         const pct = total ? Math.round((c / total) * 100) : 0;
         const chosen = myVote && myVote.optionIds.includes(o.id);
+        const isWinner = closed && winners.includes(o.id);
         return (
-          <button key={o.id} className={`rg-option ${chosen ? "checked" : ""}`} onClick={() => onVote(poll, o.id)}>
-            <span className="rg-opt-fill" style={{ width: closed ? `${pct}%` : "0%" }} />
-            <span className="rg-opt-label">{closed && winners.includes(o.id) ? "🏆 " : ""}{o.label}</span>
-            {(closed || total > 0) && <span className="rg-opt-count">{c} · {pct}%</span>}
+          <button key={o.id} onClick={() => onVote(poll, o.id)} style={{
+            display: "flex", alignItems: "center", gap: 8, width: "100%",
+            background: chosen ? "rgba(16,185,129,.22)" : "rgba(255,255,255,.05)",
+            border: chosen ? "1px solid rgba(16,185,129,.5)" : "1px solid rgba(255,255,255,.1)",
+            borderRadius: 8, padding: "7px 10px", marginBottom: 5, cursor: "pointer",
+            color: "#eef4f0", fontSize: 12.5, textAlign: "left", transition: "background .2s",
+          }}>
+            {isWinner && <span>🏆</span>}
+            <span style={{ flex: 1, fontWeight: chosen ? 700 : 400 }}>{o.label}</span>
+            {(closed || total > 0) && <span style={{ color: "rgba(255,255,255,.5)", fontSize: 11 }}>{pct}%</span>}
           </button>
         );
       })}
-      {isAdmin && !closed && <button className="rg-btn rg-btn-sm rg-btn-primary" style={{ marginTop: 9, width: "auto" }} onClick={() => onFinalize(poll)}>Finalize · {winners.length ? winners.map((w) => (poll.options || []).find((o) => o.id === w)?.label).join(", ") : "winner"}</button>}
+      {isAdmin && !closed && (
+        <button onClick={() => onFinalize(poll)} style={{
+          marginTop: 4, width: "100%", background: "rgba(16,185,129,.18)",
+          border: "1px solid rgba(16,185,129,.4)", borderRadius: 8, padding: "6px 10px",
+          color: "#34d399", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+        }}>Finalize poll</button>
+      )}
     </div>
   );
 }
@@ -62,18 +80,28 @@ function ChatPoll({ poll, self, onVote, isAdmin, onFinalize }) {
 function ChatPlace({ place, self, onVote }) {
   const net = placeNetVotes(place);
   const meta = placeStatusMeta(place);
+  const hasImg = place.images && place.images[0];
   return (
-    <div className="rg-card" style={{ overflow: "hidden", padding: 0 }}>
-      {place.images && place.images[0] ? <img src={place.images[0]} alt="" style={{ width: "100%", height: 110, objectFit: "cover" }} /> : <div style={{ height: 70, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>{place.emoji}</div>}
-      <div style={{ padding: 10 }}>
-        <div className="rg-row" style={{ justifyContent: "space-between" }}>
-          <b style={{ fontSize: 13.5 }}>{place.name}</b>
-          <span className={`rg-status-pill rg-st-${meta.tone}`}>{meta.label}</span>
+    <div style={{ minWidth: 200, maxWidth: 300, overflow: "hidden", borderRadius: 12 }}>
+      {hasImg && <img src={place.images[0]} alt="" style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: "10px 10px 0 0", display: "block" }} />}
+      <div style={{ padding: hasImg ? "8px 2px 2px" : "2px 2px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+          <span style={{ fontSize: 18 }}>{place.emoji || "📍"}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{place.name}</div>
+            {place.location && <div style={{ fontSize: 11, color: "rgba(255,255,255,.5)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>📍 {place.location}</div>}
+          </div>
+          <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: meta.tone === "green" ? "rgba(16,185,129,.2)" : "rgba(255,255,255,.08)", color: meta.tone === "green" ? "#34d399" : "#a7b3ab", whiteSpace: "nowrap" }}>{meta.label}</span>
         </div>
-        {place.location && <div className="rg-hint" style={{ marginTop: 2 }}>📍 {place.location}</div>}
-        <div className="rg-row" style={{ gap: 8, marginTop: 8 }}>
-          <button className={`rg-vote-btn ${place.upvotes.includes(self.id) ? "on up" : ""}`} style={{ padding: "5px 9px", fontSize: 12 }} onClick={() => onVote(place, "up")}>❤️ {net}</button>
-          {place.cost && <span className="rg-hint">₹{place.cost}/person</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+          <button onClick={() => onVote(place, "up")} style={{
+            display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,.06)",
+            border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "5px 10px",
+            color: "#eef4f0", fontSize: 12, cursor: "pointer",
+          }}>
+            ❤️ {net > 0 ? `+${net}` : net}
+          </button>
+          {place.cost && <span style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>₹{place.cost}/person</span>}
         </div>
       </div>
     </div>
