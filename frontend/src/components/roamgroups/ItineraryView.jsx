@@ -10,7 +10,7 @@ function SuggestionCard({ s, g, act }) {
       <span className="rg-act-ic">💡</span>
       <div className="rg-sug-body">
         <div className="rg-sug-text">
-          <b>{s.name}</b> suggested{s.targetDayId ? ` for Day ${target ? target.dayNumber : "?"}` : ""}: “{s.text}”
+          <b>{(g.members?.find(m=>m.id===s.byUid)?.username || g.members?.find(m=>m.id===s.byUid)?.name || s.name)}</b> suggested{s.targetDayId ? ` for Day ${target ? target.dayNumber : "?"}` : ""}: “{s.text}”
         </div>
         <div className="rg-sug-by">{s.type} · {timeAgo(s.createdAt)}</div>
         <div className="rg-sug-votes">

@@ -153,7 +153,7 @@ export default function ExpensesView({ g, act }) {
 }
 
 function ensureTravellers(tripId, members, self) {
-  const map = (m) => ({ id: m.id, name: m.name, upi: m.upi || "", isYou: m.id === self.id });
+  const map = (m) => ({ id: m.id, name: m.username || m.name, upi: m.upi || "", isYou: m.id === self.id });
   let list = loadTravellers(tripId);
   const next = [];
   members.forEach((m) => {

@@ -39,7 +39,7 @@ export default function AnnouncementsView({ g, act }) {
           <div className="rg-pin-banner" key={m.id} onClick={() => act.openChat()}>
             <span style={{ fontSize: 16 }}>📌</span>
             <div style={{ minWidth: 0 }}>
-              <b style={{ fontSize: 13 }}>{m.name}</b>
+              <b style={{ fontSize: 13 }}>{(g.members?.find((mem) => mem.id === m.uid)?.username || g.members?.find((mem) => mem.id === m.uid)?.name) || m.name}</b>
               <span className="rg-hint" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.text || "Pinned item"}</span>
             </div>
           </div>

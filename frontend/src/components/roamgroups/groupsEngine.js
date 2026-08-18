@@ -572,7 +572,7 @@ export function memberBalances(groupMembers, expenses, settlements) {
   return computeBalances(
     expenses,
     settlements,
-    groupMembers.map((m) => ({ id: m.id, name: m.name, upi: m.upi || "" }))
+    groupMembers.map((m) => ({ id: m.id, name: m.username || m.name, upi: m.upi || "" }))
   );
 }
 

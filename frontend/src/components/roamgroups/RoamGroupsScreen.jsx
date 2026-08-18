@@ -157,7 +157,7 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
   // ── action bag passed to feature views ─────────────────────
   function log(icon, text, kind) {
     if (!group) return;
-    addActivityLocal({ gid: group.id, uidRaw: selfRecord.id, name: selfRecord.name, icon, text, kind: kind || "generic" }).catch(() => {});
+    addActivityLocal({ gid: group.id, uidRaw: selfRecord.id, name: selfRecord.username || selfRecord.name, icon, text, kind: kind || "generic" }).catch(() => {});
   }
   function notify(text, kind, icon) {
     if (!group) return;
@@ -244,7 +244,7 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
     addPlace: (data) => {
       addPlace({ group, member: selfRecord, data }).then((place) => {
         log("📍", `suggested ${place.name}`, "place");
-        notify(`${selfRecord.name} suggested "${place.name}"`, "place", "📍");
+        notify(`${selfRecord.username || selfRecord.name} suggested "${place.name}"`, "place", "📍");
       }).catch(errToast);
     },
 
@@ -267,7 +267,7 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
     addItinerarySuggestion: (data) => {
       const it = itinerary || { days: makeItineraryDays(group), suggestions: [] };
       it.suggestions = it.suggestions || [];
-      it.suggestions.push({ id: uid2(), byUid: selfRecord.id, name: selfRecord.name, type: data.type, text: data.text, targetDayId: data.targetDayId || null, votes: [selfRecord.id], status: "open", createdAt: new Date().toISOString() });
+      it.suggestions.push({ id: uid2(), byUid: selfRecord.id, name: selfRecord.username || selfRecord.name, type: data.type, text: data.text, targetDayId: data.targetDayId || null, votes: [selfRecord.id], status: "open", createdAt: new Date().toISOString() });
       saveItinerary(group.id, it).catch(errToast);
       log("💡", `suggested "${data.text.slice(0, 40)}" for the itinerary`, "itinerary");
     },
@@ -319,12 +319,12 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
         return { ...prev, members: [...prev.members, m] };
       });
       setMember(group.id, m).then(() => {
-        log("🤝", `invited ${m.name}`, "member");
-        notify(`${m.name} joined the group`, "member", "🤝");
+        log("🤝", `invited ${m.username || m.name}`, "member");
+        notify(`${m.username || m.name} joined the group`, "member", "🤝");
       }).catch(errToast);
     },
-    promoteMember: (m) => { setMember(group.id, { ...m, role: "admin" }).catch(errToast); log("👑", `made ${m.name} an admin`, "member"); },
-    removeMember: (m) => { removeMember(group.id, m.id).catch(errToast); log("🚪", `removed ${m.name}`, "member"); },
+    promoteMember: (m) => { setMember(group.id, { ...m, role: "admin" }).catch(errToast); log("👑", `made ${m.username || m.name} an admin`, "member"); },
+    removeMember: (m) => { removeMember(group.id, m.id).catch(errToast); log("🚪", `removed ${m.username || m.name}`, "member"); },
     leaveGroup: () => {
       leaveGroup(group.id, userId).then(() => setActiveGid(null)).catch(errToast);
       showToast("You left the group", "info");
@@ -558,11 +558,11 @@ function GroupView({ g, act, tab, setTab, onBack, onInvite, onSettings, onSearch
           <h2>{g.group.name}</h2>
           <p className="rg-sub">
             {groupSubtitle(g.group)}
-            <br/><span style={{ opacity: 0.85, fontSize: "0.9em" }}>Created by {g.group?.createdBy === self.id ? "You" : g.members?.find((m) => m.role === "admin")?.name || g.members?.[0]?.name || "a member"}</span>
+            <br/><span style={{ opacity: 0.85, fontSize: "0.9em" }}>Created by {g.group?.createdBy === self.id ? "You" : g.members?.find((m) => m.role === "admin")?.username || g.members?.find((m) => m.role === "admin")?.name || (g.members?.[0]?.username || g.members?.[0]?.name) || "a member"}</span>
           </p>
           <div className="rg-row" style={{ marginTop: 12, gap: 8 }}>
             {(g.members || []).slice(0, 5).map((m) => (
-              <span key={m.id} className="rg-ava" title={m.name} style={m.avatar ? { backgroundImage: `url(${m.avatar})`, backgroundSize: "cover" } : avatarStyle(m.name)}>{!m.avatar && initials(m.name)}</span>
+              <span key={m.id} className="rg-ava" title={m.username || m.name} style={m.avatar ? { backgroundImage: `url(${m.avatar})`, backgroundSize: "cover" } : avatarStyle(m.username || m.name)}>{!m.avatar && initials(m.username || m.name)}</span>
             ))}
             <button className="rg-btn rg-btn-sm rg-btn-gold" style={{ marginLeft: "auto" }} onClick={onInvite}>+ Invite</button>
           </div>

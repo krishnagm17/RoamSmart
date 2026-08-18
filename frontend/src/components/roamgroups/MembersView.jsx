@@ -23,15 +23,16 @@ export default function MembersView({ g, act }) {
       {members.map((m) => {
         const online = onlineFor(m);
         const role = memberRole(m);
+        const dName = m.username || m.name;
         return (
           <div className="rg-list-row" key={m.id}>
-            <span className={`rg-ava ${m.avatar ? "" : ""}`} style={m.avatar ? { backgroundImage: `url(${m.avatar})`, backgroundSize: "cover" } : avatarStyle(m.name)}>
-              {!m.avatar && initials(m.name)}
+            <span className={`rg-ava ${m.avatar ? "" : ""}`} style={m.avatar ? { backgroundImage: `url(${m.avatar})`, backgroundSize: "cover" } : avatarStyle(dName)}>
+              {!m.avatar && initials(dName)}
               <span className={`rg-dot ${online ? "on" : "off"}`} />
             </span>
             <div className="rg-list-body">
               <div className="rg-list-name">
-                {m.name}{m.id === g.self.id && " (you)"}
+                {dName}{m.id === g.self.id && " (you)"}
                 {role === "admin" && <span className="rg-admin-badge"><Crown size={9} /> admin</span>}
               </div>
               <div className="rg-list-sub">
@@ -56,15 +57,18 @@ export default function MembersView({ g, act }) {
 
       <div className="rg-divider" />
       <div className="rg-section"><h2>Activity</h2></div>
-      {(g.activity || []).slice(0, 12).map((a) => (
-        <div className="rg-act-row" key={a.id}>
-          <span className="rg-act-ic">{a.icon || "•"}</span>
-          <div style={{ flex: 1 }}>
-            <p><b>{a.name}</b> {a.text}</p>
-            <time>{timeAgo(a.createdAt)}</time>
+      {(g.activity || []).slice(0, 12).map((a) => {
+        const dName = a.username || a.name; // In case activity records don't have username yet, fallback to name
+        return (
+          <div className="rg-act-row" key={a.id}>
+            <span className="rg-act-ic">{a.icon || "💡"}</span>
+            <div style={{ flex: 1 }}>
+              <p><b>{dName}</b> {a.text}</p>
+              <time>{timeAgo(a.createdAt)}</time>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {(g.activity || []).length === 0 && <p className="rg-hint">Group activity will appear here.</p>}
 
       {inviteOpen && (

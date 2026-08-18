@@ -224,13 +224,13 @@ export function InviteSheet({ group, members, self, onAddMember, onClose, onInvi
             const isAdded = isReal ? addedUids.has(u.uid) : added.has(String(u.username).toLowerCase());
             return (
               <div className="rg-list-row" key={u.uid || u.username}>
-                <span className="rg-ava" style={u.avatar ? { backgroundImage: `url(${u.avatar})`, backgroundSize: "cover" } : avatarStyle(u.name)}>{!u.avatar && initials(u.name)}</span>
+                <span className="rg-ava" style={u.avatar ? { backgroundImage: `url(${u.avatar})`, backgroundSize: "cover" } : avatarStyle(u.username || u.name)}>{!u.avatar && initials(u.username || u.name)}</span>
                 <div className="rg-list-body">
                   <div className="rg-list-name">
                     @{u.username}
                     {isReal && <span style={{ marginLeft: 6, fontSize: 10, background: "rgba(16,185,129,0.15)", color: "#10b981", padding: "2px 6px", borderRadius: 6, fontWeight: 600 }}>✓ RoamSmart</span>}
                   </div>
-                  <div className="rg-list-sub">{u.name} · {u.email} {u.phone ? `· ${u.phone}` : ""}</div>
+                  <div className="rg-list-sub">{u.username || u.name} · {u.email} {u.phone ? `· ${u.phone}` : ""}</div>
                 </div>
                 <button className="rg-btn rg-btn-sm rg-btn-primary" disabled={isAdded} onClick={() => addFromUser(u)}>
                   {isAdded ? "Added" : <><Plus size={13} /> Add</>}
@@ -404,7 +404,7 @@ export function GroupSearchModal({ group, data, onClose }) {
       {q.trim() && items.length === 0 && <div className="rg-empty"><p>Nothing matches “{q}”.</p></div>}
       {q.trim() && items.map((it, i) => {
         if (it.type === "message") return <div key={i} className="rg-list-row"><span className="rg-act-ic">{it.data.kind === "text" ? "💬" : it.data.kind === "place" ? "📍" : "📎"}</span><div className="rg-list-body"><div className="rg-list-name">{it.data.name} · <span className="rg-hint">{timeAgo(it.data.createdAt)}</span></div><div className="rg-list-sub">{it.data.replyTo ? `↩ ${it.data.replyTo.text} — ` : ""}{(it.data.text || it.data.title || "").slice(0, 140)}</div></div></div>;
-        if (it.type === "person") return <div key={i} className="rg-list-row"><span className="rg-ava" style={avatarStyle(it.data.name)}>{initials(it.data.name)}</span><div className="rg-list-body"><div className="rg-list-name">@{it.data.username}</div><div className="rg-list-sub">{it.data.email || it.data.phone || "Team member"}</div></div></div>;
+        if (it.type === "person") return <div key={i} className="rg-list-row"><span className="rg-ava" style={avatarStyle(it.data.username || it.data.name)}>{initials(it.data.username || it.data.name)}</span><div className="rg-list-body"><div className="rg-list-name">@{it.data.username}</div><div className="rg-list-sub">{it.data.email || it.data.phone || "Team member"}</div></div></div>;
         if (it.type === "place") return <div key={i} className="rg-list-row"><span className="rg-act-ic">📍</span><div className="rg-list-body"><div className="rg-list-name">{it.data.name}</div><div className="rg-list-sub">{it.data.location} · {it.data.upvotes.length} up {it.data.downvotes.length} down</div></div></div>;
         if (it.type === "poll") return <div key={i} className="rg-list-row"><span className="rg-act-ic">🗳️</span><div className="rg-list-body"><div className="rg-list-name">{it.data.title}</div><div className="rg-list-sub">{POLL_TYPES[it.data.kind]?.label || "Poll"} · {it.data.votes.length} votes</div></div></div>;
         if (it.type === "file") return <div key={i} className="rg-list-row"><span className="rg-act-ic">{it.data.kind === "link" ? "🔗" : "📎"}</span><div className="rg-list-body"><div className="rg-list-name">{it.data.name}</div><div className="rg-list-sub">{it.data.caption || ""}</div></div></div>;

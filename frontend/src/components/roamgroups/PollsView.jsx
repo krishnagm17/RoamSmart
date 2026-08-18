@@ -18,7 +18,7 @@ function PollCard({ poll, self, isAdmin, onVote, onFinalize, onDelete }) {
         <div style={{ flex: 1 }}>
           <div className="rg-poll-title">{poll.title}</div>
           <div className="rg-poll-meta">
-            {kind.label} · {total} vote{total === 1 ? "" : "s"} · by {poll.name} · {timeAgo(poll.createdAt)}
+            {kind.label} · {total} vote{total === 1 ? "" : "s"} · by {(g.members?.find(m=>m.id===poll.createdBy)?.username || g.members?.find(m=>m.id===poll.createdBy)?.name || poll.name)} · {timeAgo(poll.createdAt)}
             {closed && <span className="rg-st-pill rg-st-ok" style={{ marginLeft: 6 }}>closed</span>}
           </div>
         </div>

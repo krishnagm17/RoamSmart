@@ -111,7 +111,7 @@ export default function ChatView({ g, act }) {
   useEffect(() => () => clearTimeout(typingTimer.current), []);
 
   function focusReply(m) {
-    setReplyTo({ id: m.id, name: m.name, text: (m.text || m.title || "").slice(0, 120), kind: m.kind });
+    setReplyTo({ id: m.id, name: dName, text: (m.text || m.title || "").slice(0, 120), kind: m.kind });
     setEditId(null);
     taRef.current && taRef.current.focus();
   }
@@ -127,7 +127,7 @@ export default function ChatView({ g, act }) {
     const others = members.filter((m) => m.id !== g.self.id && m.status === "joined");
     if (others.length) {
       const pick = others[Math.floor(Math.random() * others.length)];
-      setTyping(pick.name);
+      setTyping((pick.username || pick.name));
       typingTimer.current = setTimeout(() => setTyping(null), 2200);
     }
   }
@@ -178,7 +178,7 @@ export default function ChatView({ g, act }) {
             <div className="rg-pin-banner" key={m.id} onClick={() => { setActiveMsg(m); }}>
               <span>{m.kind === "image" ? "🖼️" : "📌"}</span>
               <div style={{ minWidth: 0 }}>
-                <b style={{ fontSize: 12 }}>{m.name}</b>
+                <b style={{ fontSize: 12 }}>{m.username || m.name}</b>
                 <span className="rg-hint" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.text || m.attachment?.name || "Pinned"}</span>
               </div>
             </div>
@@ -229,7 +229,7 @@ export default function ChatView({ g, act }) {
       {(replyTo || editId) && (
         <div className="rg-card" style={{ margin: "8px 0", padding: "9px 12px" }}>
           <div className="rg-row" style={{ justifyContent: "space-between" }}>
-            <span className="rg-hint" style={{ fontSize: 12 }}>{editId ? "Editing message" : `↩ Replying to ${replyTo.name}`}</span>
+            <span className="rg-hint" style={{ fontSize: 12 }}>{editId ? "Editing message" : `↩ Replying to ${(replyTo.username || replyTo.name)}`}</span>
             <button className="rg-btn rg-btn-sm rg-btn-ghost" style={{ padding: "3px 9px", fontSize: 11 }} onClick={() => { setReplyTo(null); setEditId(null); }}>✕</button>
           </div>
           {replyTo && <div className="rg-hint" style={{ fontSize: 12, color: "var(--accent,#e0a84e)", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{replyTo.text || replyTo.attachment?.name || "…"}</div>}
@@ -288,7 +288,7 @@ export default function ChatView({ g, act }) {
           <div className="rg-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="rg-sheet-handle" />
             <div style={{ marginBottom: 10, overflow: "hidden", borderBottom: "1px solid var(--border,rgba(255,255,255,.08))", paddingBottom: 10 }}>
-              <b style={{ fontSize: 13 }}>{activeMsg.name}</b>
+              <b style={{ fontSize: 13 }}>{(activeMsg.username || activeMsg.name)}</b>
               <p className="rg-hint" style={{ margin: 0 }}>{activeMsg.text || activeMsg.attachment?.name || ""}</p>
             </div>
             <div className="rg-quick-react">
@@ -335,7 +335,7 @@ function MessageRow({ m, mine, g, act, onOpen, onReply, renderPoll, renderPlace,
 
   return (
     <div className={`rg-bubble-row ${mine ? "mine" : ""}`}>
-      {!mine && <span className="rg-ava sm" style={avatarStyle(m.uid)}>{initials(m.name)}</span>}
+      {!mine && <span className="rg-ava sm" style={avatarStyle(m.uid)}>{initials((g.members?.find((mem) => mem.id === m.uid)?.username || g.members?.find((mem) => mem.id === m.uid)?.name) || m.name)}</span>}
       <div style={{ maxWidth: "min(86%, 570px)", display: "flex", gap: 8, flexDirection: "column" }}>
         <div className={`rg-bubble ${mine ? "mine" : "other"}`} onClick={() => onOpen(m)}>
           {m.kind === "system" || m.kind === "expense" ? (
@@ -345,10 +345,10 @@ function MessageRow({ m, mine, g, act, onOpen, onReply, renderPoll, renderPlace,
             </div>
           ) : (
             <>
-              {!mine && <div className="rg-msg-author">{m.name}</div>}
+              {!mine && <div className="rg-msg-author">{(g.members?.find((mem) => mem.id === m.uid)?.username || g.members?.find((mem) => mem.id === m.uid)?.name) || m.name}</div>}
               {m.replyTo && (
                 <div className="rg-reply-quote" onClick={(e) => { e.stopPropagation(); }}>
-                  <div className="rg-rc">{m.replyTo.name}</div>
+                  <div className="rg-rc">{(m.replyTo.username || m.replyTo.name)}</div>
                   <div>{m.replyTo.kind === "poll" ? "🗳️ poll" : m.replyTo.kind === "place" ? "📍 place" : m.replyTo.text}</div>
                 </div>
               )}
