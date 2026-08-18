@@ -90,6 +90,7 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
 
   const isMulti = itinerary.tripType === "multi" || (Array.isArray(itinerary.destinations) && itinerary.destinations.length > 0);
 
+
   const effectiveFormData = {
     destination: formData?.destination || itinerary.destination || itinerary.startLocation || (Array.isArray(itinerary.destinations) ? itinerary.destinations.map((d) => d.name).join(", ") : "") || "India",
     startDate: formData?.startDate || itinerary.startDate || "",
@@ -97,6 +98,21 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
     numTravellers: formData?.numTravellers || itinerary.numTravellers || 2,
     budgetLevel: formData?.budgetLevel || itinerary.budgetLevel || "Standard",
     ...formData
+  };
+
+  const getDestinationForDay = (dayObj) => {
+    if (dayObj.destination && typeof dayObj.destination === 'string' && dayObj.destination.length < 25 && !dayObj.destination.includes('(')) {
+      return dayObj.destination;
+    }
+    if (isMulti && formData?.destinations?.length > 0) {
+      let currentDay = 1;
+      for (const dest of formData.destinations) {
+        currentDay += Number(dest.days || 1);
+        if (dayObj.day < currentDay) return dest.name;
+      }
+      return formData.destinations[formData.destinations.length - 1].name;
+    }
+    return effectiveFormData.destination;
   };
 
   const multiHotels = useMemo(() => {
@@ -289,8 +305,8 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
                     <h3 className="font-display" style={{fontSize: '28px', color: 'var(--text-primary)', marginTop: '8px'}}>{day.theme}</h3>
                   </header>
               <DayConditionStrip
-                destination={day.destination || effectiveFormData.destination}
-                date={effectiveFormData.startDate}
+                destination={getDestinationForDay(day)}
+                date={getDateForDay(effectiveFormData.startDate, day.day)}
                 showToast={showToast}
                 api={api}
               />
