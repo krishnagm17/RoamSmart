@@ -44,8 +44,8 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
   useEffect(() => {
     if (!itinerary || !itinerary.days) return;
 
-    const allActivities = itinerary.days.flatMap(day =>
-      day.activities.map(activity => ({
+    const allActivities = (itinerary.days || []).flatMap(day =>
+      (day.activities || []).map(activity => ({
         placeName:   activity.name,
         placeType:   activity.type,
         destination: day.destination || formData?.destination || itinerary.destination || itinerary.startLocation || '',
@@ -552,10 +552,10 @@ function CrowdOverviewCard({ itinerary, predictions, formData }) {
     return '#e63946';
   };
 
-  const daySummaries = itinerary.days.map(day => {
+  const daySummaries = (itinerary.days || []).map(day => {
     let totalScore = 0;
     let count = 0;
-    day.activities.forEach(act => {
+    (day.activities || []).forEach(act => {
       const pred = predictions[`${day.day}-${act.name}`];
       if (pred && typeof pred.overallScore === 'number') {
         totalScore += pred.overallScore;
@@ -574,8 +574,8 @@ function CrowdOverviewCard({ itinerary, predictions, formData }) {
   let totalHighStops = 0;
   let worstDayOfWeek = '';
   
-  itinerary.days.forEach(day => {
-    day.activities.forEach(act => {
+  (itinerary.days || []).forEach(day => {
+    (day.activities || []).forEach(act => {
       const pred = predictions[`${day.day}-${act.name}`];
       if (pred && (pred.overallLevel === 'High' || pred.overallLevel === 'Very High')) {
         totalHighStops++;
