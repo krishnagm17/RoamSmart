@@ -1,87 +1,28 @@
 import { useState, useEffect } from 'react';
-import { MessageCircle, Copy, Check, ExternalLink, RefreshCw, Loader2 } from 'lucide-react';
-import api from '../api.js';
+import { MessageCircle, Save } from 'lucide-react';
+import { useAuth } from '../auth/AuthContext';
 
-export default function TelegramSettings({ userId, showToast }) {
-  const [status, setStatus] = useState({ connected: false });
-  const [statusLoading, setStatusLoading] = useState(true);
-  const [link, setLink] = useState('');
-  const [linkLoading, setLinkLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [polling, setPolling] = useState(false);
+export default function TelegramSettings({ showToast }) {
+  const { profile, updateProfile } = useAuth();
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!userId) return;
-    (async () => {
-      try {
-        const res = await api.get(`/api/telegram/status/${userId}`);
-        setStatus(res.data);
-      } catch {
-        // status endpoint may be unavailable — assume disconnected
-      } finally {
-        setStatusLoading(false);
-      }
-    })();
-  }, [userId]);
+    if (profile?.phone) {
+      setPhone(profile.phone);
+    }
+  }, [profile]);
 
-  // When a link is generated, poll until connected (or timeout).
-  useEffect(() => {
-    if (!link || !userId) return;
-    setPolling(true);
-    const timer = setInterval(async () => {
-      try {
-        const res = await api.get(`/api/telegram/status/${userId}`);
-        setStatus(res.data);
-        if (res.data.connected) {
-          clearInterval(timer);
-          setPolling(false);
-          showToast?.('Telegram connected! You will now receive alerts here.', 'success');
-        }
-      } catch {
-        // keep polling
-      }
-    }, 3000);
-    const timeout = setTimeout(() => {
-      clearInterval(timer);
-      setPolling(false);
-    }, 5 * 60 * 1000);
-    return () => {
-      clearInterval(timer);
-      clearTimeout(timeout);
-    };
-  }, [link, userId, showToast]);
-
-  async function handleConnect() {
-    if (!userId) return;
-    setLinkLoading(true);
+  async function handleSave() {
+    setLoading(true);
     try {
-      const res = await api.post('/api/telegram/connect', { userId });
-      if (res.data.link) setLink(res.data.link);
-      showToast?.('Open the Telegram link to connect.', 'info');
+      await updateProfile({ phone: phone.trim() });
+      showToast?.('Telegram number saved! We will connect you to our alerts bot.', 'success');
     } catch (err) {
-      console.error('Telegram connect error:', err);
-      showToast?.('Could not create a connect link. Try again.', 'error');
+      showToast?.('Could not save phone number. Try again.', 'error');
     } finally {
-      setLinkLoading(false);
+      setLoading(false);
     }
-  }
-
-  async function handleDisconnect() {
-    try {
-      await api.post('/api/telegram/disconnect', { userId });
-      setStatus({ connected: false });
-      setLink('');
-      showToast?.('Telegram disconnected.', 'info');
-    } catch (err) {
-      showToast?.('Could not disconnect.', 'error');
-    }
-  }
-
-  function handleCopy() {
-    if (!link) return;
-    navigator.clipboard?.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -91,52 +32,33 @@ export default function TelegramSettings({ userId, showToast }) {
         <h3>Telegram Alerts</h3>
       </div>
 
-      {statusLoading ? (
-        <div className="telegram-loading">Checking connection…</div>
-      ) : status.connected ? (
-        <div className="telegram-connected">
-          <div className="telegram-connected-icon">✅</div>
-          <p><strong>Connected</strong></p>
-          <p className="telegram-muted">You will receive travel & hazard alerts on Telegram.</p>
-          <div className="telegram-actions">
-            <button className="btn-secondary" onClick={handleDisconnect}>Disconnect</button>
-          </div>
+      <div className="telegram-disconnected">
+        <p className="telegram-muted">
+          Enter your Telegram phone number below. We will manually add you to our Telegram bot so you can receive official hazard warnings and travel condition alerts securely.
+        </p>
+        
+        <div style={{ display: 'flex', gap: '8px', width: '100%', maxWidth: '400px', marginTop: '12px' }}>
+          <input 
+            type="tel" 
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+91 XXXXX XXXXX"
+            style={{ 
+              flex: 1, 
+              padding: '10px 14px', 
+              borderRadius: '8px', 
+              border: '1px solid var(--border-color)', 
+              background: 'rgba(0,0,0,0.1)',
+              color: 'var(--text-primary)',
+              fontSize: '14px'
+            }}
+          />
+          <button className="btn-primary" onClick={handleSave} disabled={loading} style={{ padding: '0 20px', borderRadius: '8px' }}>
+            {loading ? 'Saving...' : 'Save'}
+          </button>
         </div>
-      ) : (
-        <div className="telegram-disconnected">
-          {!link ? (
-            <>
-              <p className="telegram-muted">
-                Connect your Telegram so official hazard warnings and travel condition alerts reach you instantly.
-              </p>
-              <button className="btn-primary" onClick={handleConnect} disabled={linkLoading}>
-                {linkLoading ? <Loader2 size={15} className="spin" /> : <MessageCircle size={15} />}
-                {linkLoading ? 'Creating link…' : 'Connect Telegram'}
-              </button>
-              {status.botUsername && (
-                <p className="telegram-bot-hint">Bot: @{status.botUsername}</p>
-              )}
-            </>
-          ) : (
-            <div className="telegram-link-box">
-              <p className="telegram-muted">
-                Open this link in Telegram (or your phone) and tap <strong>Start</strong>. Your chat will be linked securely.
-              </p>
-              {polling && <p className="telegram-polling"><RefreshCw size={12} className="spin" /> Waiting for you to press Start…</p>}
-              <div className="telegram-link-row">
-                <code className="telegram-link">{link}</code>
-                <button className="btn-secondary telegram-copy" onClick={handleCopy} title="Copy link">
-                  {copied ? <Check size={15} /> : <Copy size={15} />}
-                </button>
-              </div>
-              <a href={link} target="_blank" rel="noopener noreferrer" className="telegram-open-btn btn-primary">
-                Open in Telegram <ExternalLink size={14} />
-              </a>
-              <button className="btn-secondary telegram-cancel" onClick={() => setLink('')}>Cancel</button>
-            </div>
-          )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
+
