@@ -101,9 +101,6 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
   };
 
   const getDestinationForDay = (dayObj) => {
-    if (dayObj.destination && typeof dayObj.destination === 'string' && dayObj.destination.length < 25 && !dayObj.destination.includes('(')) {
-      return dayObj.destination;
-    }
     if (isMulti && formData?.destinations?.length > 0) {
       let currentDay = 1;
       for (const dest of formData.destinations) {
@@ -216,7 +213,7 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
         <DayRoutePanel
           days={itinerary.days || []}
           destination={effectiveFormData.destination}
-          getDestination={(day) => (isMulti ? day.destination || itinerary.startLocation : effectiveFormData.destination)}
+          getDestination={getDestinationForDay}
         />
       </Section>
 
@@ -344,8 +341,8 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
               <DayPhotoGallery
                 tripId={tripId}
                 dayNumber={day.day}
-                destination={day.destination || formData?.destination}
-                formData={formData}
+                destination={getDestinationForDay(day)}
+                formData={effectiveFormData}
                 activities={day.activities || []}
                 onAddPhoto={openPhotoUploader}
               />
@@ -714,6 +711,7 @@ function DayConditionStrip({ destination, date, showToast, api }) {
         <span style={{ fontSize: '12.5px' }}>⚠️ Travel conditions unavailable — check local advisories before heading out.</span>
       ) : (
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{destination.split(',')[0]}</span>
           <span><i className="ti ti-cloud-rain" aria-hidden="true" /> {w.maxTemp != null ? `${w.maxTemp.toFixed(0)}°C` : '—'} {w.mainCondition ? `· ${w.mainCondition}` : ''} {w.maxRain != null && w.maxRain > 0 ? `· ${w.maxRain.toFixed(0)}mm rain` : ''}</span>
           <span><i className="ti ti-wind" aria-hidden="true" /> AQI {aqi.aqi ?? '—'}{aqi.pollutant ? ` (${aqi.pollutant.toUpperCase()})` : ''}</span>
           <span><i className="ti ti-users" aria-hidden="true" /> Crowd {crowd.crowdScore != null ? `${crowd.crowdScore}/100` : '—'}</span>
