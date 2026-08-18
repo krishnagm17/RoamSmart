@@ -595,21 +595,10 @@ export function searchGroup(query, parts) {
 
 // ---------- Shared demo users ----------
 
-export const DEMO_USERS = [
-  { name: "Rahul Sharma", username: "rahul.roams", email: "rahul@roamsmart.app", phone: "+91 98450 11223", kind: "demo" },
-  { name: "Arjun Nair", username: "arjun.wanders", email: "arjun@roamsmart.app", phone: "+91 98765 01012", kind: "demo" },
-  { name: "Priya Iyer", username: "priya.palace", email: "priya@roamsmart.app", phone: "+91 97420 55678", kind: "demo" },
-  { name: "Sneha Kulkarni", username: "sneha.hikes", email: "sneha@roamsmart.app", phone: "+91 90220 33445", kind: "demo" },
-  { name: "Vikram Singh", username: "vikram.globe", email: "vikram@roamsmart.app", phone: "+91 99955 77890", kind: "demo" },
-  { name: "Tara Mehta", username: "tara.trails", email: "tara@roamsmart.app", phone: "+91 98110 22334", kind: "demo" },
-];
+export const DEMO_USERS = [];
 
 export function searchDemoUsers(q) {
-  const s = String(q || "").trim().toLowerCase();
-  if (!s) return [];
-  return DEMO_USERS.filter(
-    (u) => u.name.toLowerCase().includes(s) || u.username.toLowerCase().includes(s) || u.email.toLowerCase().includes(s) || String(u.phone).toLowerCase().includes(s)
-  );
+  return [];
 }
 
 export function memberFromUser(user, role = "member") {
