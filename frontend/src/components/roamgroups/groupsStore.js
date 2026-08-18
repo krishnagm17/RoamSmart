@@ -397,13 +397,19 @@ export async function joinGroupByCode(code, self) {
     return res;
   }
 
-  // Step 1: Look up the invitation (public read — invites are not member-gated)
-  const { data: invite, error: invErr } = await supabase
+  // Step 1: Look up invitation or group directly by code
+  let gid = null;
+  const { data: invite } = await supabase
     .from("groupInvitations").select("*").eq("code", c).maybeSingle();
-  if (invErr || !invite) return { ok: false, error: "Invite link not found or has been revoked." };
-  if (invite.revoked) return { ok: false, error: "Invite link has been revoked." };
+  if (invite && !invite.revoked) {
+    gid = invite.gid;
+  } else {
+    const { data: gMatch } = await supabase
+      .from("groups").select("id").eq("code", c).maybeSingle();
+    if (gMatch) gid = gMatch.id;
+  }
 
-  const gid = invite.gid;
+  if (!gid) return { ok: false, error: "Invite link not found or has been revoked." };
 
   // Step 2: Check if already a member (member-read is allowed for own rows)
   const { data: existing } = await supabase

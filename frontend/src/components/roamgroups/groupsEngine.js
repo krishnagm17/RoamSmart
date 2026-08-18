@@ -21,6 +21,29 @@ export const PRIVACY_OPTIONS = [
   { id: "linkShare", label: "Anyone with invite link", desc: "Anyone with the link can join" },
 ];
 
+export function parseInviteCode(input) {
+  let str = input;
+  if (!str && typeof window !== "undefined") {
+    str = window.location.href;
+  }
+  if (!str) return null;
+  str = String(str).trim();
+
+  // 1. Match roamgroups=CODE, invite=CODE, join=CODE, code=CODE in URL/string
+  const match = str.match(/(?:roamgroups|invite|join|code)[=\/]([A-Za-z0-9]+)/i);
+  if (match && match[1]) {
+    return match[1].toUpperCase();
+  }
+
+  // 2. Direct code string check (6-12 alphanumeric characters)
+  const cleanStr = str.replace(/^#/, "").replace(/^\?/, "");
+  if (/^[A-Za-z0-9]{6,12}$/.test(cleanStr) && !["DASHBOARD", "TRIPS", "SPLIT", "GROUPS", "PROFILE", "SCANNER", "JOURNAL", "SAFETY", "ALERTS"].includes(cleanStr.toUpperCase())) {
+    return cleanStr.toUpperCase();
+  }
+
+  return null;
+}
+
 export const POLL_TYPES = {
   destination: { label: "Destination", icon: "🌍" },
   activity: { label: "Activity", icon: "🎯" },
