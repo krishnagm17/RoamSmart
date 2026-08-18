@@ -334,16 +334,17 @@ export function revokeInvites(gid) {
   return saveInvites(loadInvites().filter((i) => i.gid !== gid));
 }
 export function acceptedInvite(code, uidRaw, name) {
-  const invite = loadInvites().find((i) => String(i.code).toUpperCase() === String(code || "").trim().toUpperCase());
-  if (!invite) return { ok: false, error: "Invite link not found or has been revoked." };
-  const group = groupById(invite.gid);
-  if (!group) return { ok: false, error: "Group no longer exists." };
+  const c = String(code || "").trim().toUpperCase();
+  const invite = loadInvites().find((i) => String(i.code).toUpperCase() === c);
+  let group = invite ? groupById(invite.gid) : null;
+  if (!group) {
+    const allGroups = loadGroups();
+    group = allGroups.find((g) => String(g.code || "").toUpperCase() === c || String(g.id || "").toUpperCase() === c);
+  }
+  if (!group) return { ok: false, error: "Invite link not found or has been revoked." };
   const members = loadMembers(group.id);
   if (members.some((m) => m.id === uidRaw)) return { ok: true, group };
-  if (group.privacy === "inviteOnly") {
-    // Simulated approval: creator is considered online to approve instantly for demo.
-  }
-  members.push({ id: uidRaw, name, username: name.toLowerCase().replace(/\s+/g, "."), email: "", phone: "", avatar: null, role: "member", status: "joined", createdAt: new Date().toISOString() });
+  members.push({ id: uidRaw, name: name || "Traveler", username: (name || "traveler").toLowerCase().replace(/\s+/g, "."), email: "", phone: "", avatar: null, role: "member", status: "joined", createdAt: new Date().toISOString() });
   saveMembers(group.id, members);
   return { ok: true, group };
 }

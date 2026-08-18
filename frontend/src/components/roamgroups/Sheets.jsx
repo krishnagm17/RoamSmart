@@ -113,10 +113,12 @@ export function JoinGroupSheet({ self, onJoin, onJoined, onClose }) {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   async function join() {
-    if (!code.trim()) return setErr("Enter the invite code.");
+    const raw = code.trim();
+    if (!raw) return setErr("Enter the invite code or link.");
+    const targetCode = parseInviteCode(raw) || raw.toUpperCase();
     setBusy(true); setErr("");
     try {
-      const res = await onJoin(code.trim().toUpperCase());
+      const res = await onJoin(targetCode);
       if (!res.ok) return setErr(res.error || "Could not join. Check the code.");
       onJoined(res.group);
     } catch (e) {
@@ -128,10 +130,10 @@ export function JoinGroupSheet({ self, onJoin, onJoined, onClose }) {
   return (
     <Overlay onClose={onClose}>
       <h3 className="rg-sheet-title">Join a group</h3>
-      <p className="rg-sheet-sub">Paste the 8-character invite code shared by the group admin.</p>
+      <p className="rg-sheet-sub">Paste the 8-character invite code or invite link shared by the group admin.</p>
       <div className="rg-field">
-        <span className="rg-label">Invite code</span>
-        <input className="rg-input" style={{ textTransform: "uppercase", fontFamily: "var(--font-mono, monospace)", letterSpacing: 3 }} placeholder="e.g. A1B2C3D4" value={code} onChange={(e) => setCode(e.target.value)} />
+        <span className="rg-label">Invite code or link</span>
+        <input className="rg-input" style={{ fontFamily: "var(--font-mono, monospace)" }} placeholder="e.g. A1B2C3D4 or paste link" value={code} onChange={(e) => setCode(e.target.value)} />
       </div>
       {err && <div className="rg-error" style={{ marginBottom: 10 }}>{err}</div>}
       <button className="rg-btn rg-btn-primary rg-btn-block" onClick={join} disabled={busy}>{busy ? "Joining…" : "Join group"}</button>

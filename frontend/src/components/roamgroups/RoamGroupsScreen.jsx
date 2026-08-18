@@ -37,7 +37,7 @@ import MembersView from "./MembersView";
 import ExpensesView from "./ExpensesView";
 import { CreateGroupSheet, JoinGroupSheet, InviteSheet, GroupSettingsSheet, NotifsPanel, GroupSearchModal, FinalPlanSheet } from "./Sheets";
 
-export default function RoamGroupsScreen({ joinCode, setActiveTab }) {
+export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveTab }) {
   const { showToast } = useToast();
   const auth = useAuth();
   const userId = auth.user?.uid;
@@ -103,10 +103,13 @@ export default function RoamGroupsScreen({ joinCode, setActiveTab }) {
 
   // Auto-join from invite link (#roamgroups=CODE)
   useEffect(() => {
-    if (!joinCode || !userId) return;
+    if (!joinCode || !userId || !self.id) return;
+    let isMounted = true;
     (async () => {
-      const res = await joinGroupByCode(joinCode, self);
-      if (res.ok) {
+      const code = String(joinCode).trim().toUpperCase();
+      const res = await joinGroupByCode(code, self);
+      if (!isMounted) return;
+      if (res.ok && res.group) {
         setGroups((prev) => {
           if (prev.find(x => x.gid === res.group.id)) return prev;
           return [{ gid: res.group.id, role: "member", joinedAt: new Date().toISOString(), lastReadAt: 0, group: res.group }, ...prev];
@@ -114,12 +117,17 @@ export default function RoamGroupsScreen({ joinCode, setActiveTab }) {
         openGroup(res.group.id);
         showToast(`Joined ${res.group.name} 🚀`, "success");
       } else {
-        showToast(res.error || "Invalid invite code", "error");
+        showToast(res.error || "Invalid or expired invite code", "error");
+      }
+      if (onClearJoinCode) onClearJoinCode();
+      if (window.location.hash.includes("roamgroups=")) {
+        window.history.replaceState({ tab: "groups" }, "", window.location.pathname + "#groups");
       }
       if (setJoinCode) setJoinCode("");
     })();
+    return () => { isMounted = false; };
     // eslint-disable-next-line
-  }, [joinCode, userId]);
+  }, [joinCode, userId, self.id]);
 
   const group = parts?.group || null;
   const members = parts?.members || [];

@@ -11,6 +11,7 @@ import SOSScreen from "./components/SOSScreen.jsx";
 import MyTripsScreen from "./components/MyTripsScreen.jsx";
 import RoamSplitScreen from "./components/roamsplit/RoamSplitScreen.jsx";
 import RoamGroupsScreen from "./components/roamgroups/RoamGroupsScreen.jsx";
+import { parseInviteCode } from "./components/roamgroups/groupsEngine.js";
 import ProfileScreen from "./components/ProfileScreen.jsx";
 import Toast, { useToast } from "./components/Toast.jsx";
 import { useAuth } from "./auth/AuthContext.jsx";
@@ -37,64 +38,76 @@ const screenMotion = {
   transition: { duration: 0.35, ease: "easeOut" }
 };
 
+const VALID_TABS = ["dashboard", "plan", "trips", "split", "groups", "profile", "scanner", "journal", "safety", "sos", "alerts"];
+
+function sanitizeTab(tab) {
+  if (!tab) return "dashboard";
+  const clean = String(tab).replace(/^#/, "").trim();
+  if (clean === "groups" || clean.startsWith("roamgroups") || clean.startsWith("invite") || clean.startsWith("join")) {
+    return "groups";
+  }
+  if (VALID_TABS.includes(clean)) {
+    return clean;
+  }
+  return "dashboard";
+}
+
 export default function App() {
   const auth = useAuth();
-  const [activeTab, setRawActiveTab] = useState(() => {
-    return localStorage.getItem("roam_active_tab") || "dashboard";
+  const [activeTab, setActiveTabState] = useState(() => {
+    const code = parseInviteCode();
+    if (code) return "groups";
+    const stored = localStorage.getItem("roam_active_tab");
+    return sanitizeTab(stored);
   });
 
+  const setRawActiveTab = (tab) => {
+    const target = sanitizeTab(tab);
+    setActiveTabState(target);
+    localStorage.setItem("roam_active_tab", target);
+  };
+
   const setActiveTab = (tab) => {
-    if (tab === activeTab) return;
-    setRawActiveTab(tab);
-    window.history.pushState({ tab }, "", `#${tab}`);
+    const target = sanitizeTab(tab);
+    if (target === activeTab) return;
+    setRawActiveTab(target);
+    window.history.pushState({ tab: target }, "", `#${target}`);
   };
 
   useEffect(() => {
     localStorage.setItem("roam_active_tab", activeTab);
   }, [activeTab]);
 
-  useEffect(() => {
-    window.history.replaceState({ tab: activeTab }, "", `#${activeTab}`);
+  const [groupsJoinCode, setGroupsJoinCode] = useState(() => parseInviteCode());
 
-    const handlePopState = (event) => {
-      if (event.state && event.state.tab) {
+  useEffect(() => {
+    const handleUrlChange = (event) => {
+      const code = parseInviteCode();
+      if (code) {
+        setGroupsJoinCode(code);
+        setRawActiveTab("groups");
+        return;
+      }
+      if (event && event.state && event.state.tab) {
         setRawActiveTab(event.state.tab);
       } else {
-        const hash = window.location.hash.replace("#", "");
-        if (hash && hash !== "roamgroups") {
-           setRawActiveTab(hash);
-        } else {
-           setRawActiveTab("dashboard");
+        const rawHash = window.location.hash.replace("#", "");
+        if (rawHash) {
+          setRawActiveTab(rawHash);
         }
       }
     };
 
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    // Run on initial load to ensure tab matches URL if code is present
+    handleUrlChange();
+
+    window.addEventListener("popstate", handleUrlChange);
+    window.addEventListener("hashchange", handleUrlChange);
+    return () => {
+      window.removeEventListener("popstate", handleUrlChange);
+      window.removeEventListener("hashchange", handleUrlChange);
+    };
   }, []);
-
-  const [screen, setScreen] = useState("form");
-  const [formData, setFormData] = useState(null);
-  const [itinerary, setItinerary] = useState(null);
-  const [error, setError] = useState("");
-  const [userInputs, setUserInputs] = useState(null);
-  const [verification, setVerification] = useState(null);
-  const [verificationLoading, setVerificationLoading] = useState(false);
-  const requestIdRef = useRef(0);
-  const { toast, showToast } = useToast();
-
-  const [rsTrip, setRsTrip] = useState(null);
-  useEffect(() => {
-    const isAuthed = auth.status === "signedIn";
-    if (isAuthed && activeTab === "login" && !auth.needsVerification && !auth.needsProfile) {
-      setActiveTab("dashboard");
-    }
-  }, [auth.status, activeTab, auth.needsVerification, auth.needsProfile]);
-
-  const [groupsJoinCode, setGroupsJoinCode] = useState(() => {
-    const m = window.location.hash.match(/roamgroups=([A-Za-z0-9]+)/);
-    return m ? m[1] : null;
-  });
 
   const [anonUserId] = useState(() => {
     let id = localStorage.getItem("roam_userId");
@@ -373,7 +386,7 @@ export default function App() {
       case "groups":
         return (
           <motion.div key="groups" {...screenMotion} className="content-area">
-            <RoamGroupsScreen userId={userId} joinCode={groupsJoinCode} setActiveTab={setActiveTab} />
+            <RoamGroupsScreen userId={userId} joinCode={groupsJoinCode} onClearJoinCode={() => setGroupsJoinCode(null)} setActiveTab={setActiveTab} />
           </motion.div>
         );
 
@@ -413,7 +426,7 @@ export default function App() {
         );
 
       default:
-        return null;
+        return <Dashboard setActiveTab={setActiveTab} onStartPlan={startPlan} />;
     }
   }
 
@@ -436,7 +449,7 @@ export default function App() {
   if (isAuthed && (auth.needsVerification || auth.needsProfile)) {
     return <AuthScreen />;
   }
-  const GATED_TABS = ["plan", "trips", "split", "groups", "profile", "scanner", "journal", "sos", "safety", "login"];
+  const GATED_TABS = ["plan", "trips", "split", "profile", "scanner", "journal", "sos", "safety", "login"];
   const showLoginPrompt = !isAuthed && GATED_TABS.includes(activeTab);
 
   return (
