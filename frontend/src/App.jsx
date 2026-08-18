@@ -76,6 +76,12 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (auth.status === "signedIn" && activeTab === "login") {
+      setActiveTab("dashboard");
+    }
+  }, [auth.status, activeTab]);
+
+  useEffect(() => {
     localStorage.setItem("roam_active_tab", activeTab);
   }, [activeTab]);
 
@@ -472,7 +478,7 @@ export default function App() {
           <div className="page-container">
             <AuthScreen />
           </div>
-        ) : activeTab !== 'dashboard' ? (
+        ) : (activeTab !== 'dashboard' && activeTab !== 'login') ? (
           <div className="page-container">
             {renderTabContent()}
           </div>
