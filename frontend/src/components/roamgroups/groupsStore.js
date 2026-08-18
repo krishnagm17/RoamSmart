@@ -430,7 +430,8 @@ export async function sendMessage({ group, member, ...data }) {
     emitLocalGroup(group.id);
     return msg;
   }
-  await supabase.from("messages").insert(toMessageRow(msg));
+  const { error } = await supabase.from("messages").insert(toMessageRow(msg));
+  if (error) throw new Error("Supabase: " + error.message);
   return msg;
 }
 

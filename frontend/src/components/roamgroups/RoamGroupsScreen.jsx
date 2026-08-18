@@ -326,7 +326,7 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
     promoteMember: (m) => { setMember(group.id, { ...m, role: "admin" }).catch(errToast); log("👑", `made ${m.username || m.name} an admin`, "member"); },
     removeMember: (m) => { removeMember(group.id, m.id).catch(errToast); log("🚪", `removed ${m.username || m.name}`, "member"); },
     leaveGroup: () => {
-      leaveGroup(group.id, userId).then(() => setActiveGid(null)).catch(errToast);
+      leaveGroup(group.id, userId).then(() => (() => { window.location.hash = "#roamgroups"; setActiveGid(null); })()).catch(errToast);
       showToast("You left the group", "info");
     },
     revokeInvites: () => { revokeInvite(group.code).catch(errToast); showToast("Invite link revoked", "info"); },
@@ -385,11 +385,11 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
       ) : (
         <GroupView
           g={g} act={act} tab={tab} setTab={setTab}
-          onBack={() => { setActiveGid(null); setParts(null); setTab("chat"); }}
+          onBack={() => { window.location.hash = "#roamgroups"; (() => { window.location.hash = "#roamgroups"; setActiveGid(null); })(); setParts(null); setTab("chat"); }}
           onInvite={() => setInviteOpen(true)} onSettings={() => setSettingsOpen(true)}
           onSearch={() => setSearchOpen(true)} onFinal={() => setFinalOpen(true)}
           onNotifs={() => setNotifsOpen(true)} unreadCount={unreadCount}
-          onDeleteGroup={() => { deleteGroup(group.id).then(() => setActiveGid(null)).catch(errToast); showToast("Group deleted", "info"); }}
+          onDeleteGroup={() => { deleteGroup(group.id).then(() => (() => { window.location.hash = "#roamgroups"; setActiveGid(null); })()).catch(errToast); showToast("Group deleted", "info"); }}
           newItemDay={newItemDay} onNewItemClose={() => setNewItemDay(null)} onNewItemSave={act.saveItineraryItem}
           progress={groupProgress(group, { places, polls, itinerary, expenses: loadExpenses(tripIdForGroup(group) || ""), settlements: loadSettlements(tripIdForGroup(group) || "") })}
         />
@@ -418,7 +418,7 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
         <GroupSettingsSheet group={group} self={selfRecord} isAdmin={isAdminSelf}
             isCreator={group.createdBy ? group.createdBy === selfRecord.id : isAdminSelf}
             onSave={(ng) => { updateGroup(group.id, ng).then(() => { setSettingsOpen(false); showToast("Settings saved", "success"); }).catch(errToast); }}
-            onDelete={() => { deleteGroup(group.id).then(() => { setSettingsOpen(false); setActiveGid(null); showToast("Group deleted", "info"); }).catch(errToast); }}
+            onDelete={() => { deleteGroup(group.id).then(() => { setSettingsOpen(false); (() => { window.location.hash = "#roamgroups"; setActiveGid(null); })(); showToast("Group deleted", "info"); }).catch(errToast); }}
             onClose={() => setSettingsOpen(false)} />
       )}
       {notifsOpen && (
