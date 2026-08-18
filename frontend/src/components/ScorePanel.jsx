@@ -98,13 +98,13 @@ export default function ScorePanel({ verification, isLoading, onRegenerate }) {
       </div>
 
       <div style={{display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '40px'}}>
-        {verification.dimensions.map((dim, idx) => {
+        {(verification.dimensions || []).map((dim, idx) => {
           const statusColor = getStatusColor(dim.status);
           const targetWidth = animateProgress ? `${dim.score}%` : "0%";
           const delay = `${idx * 100}ms`;
 
           return (
-            <div key={dim.id} title={dim.comment} style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+            <div key={dim.id || idx} title={dim.comment} style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px'}}>
                 <span style={{color: 'var(--text-primary)'}}>{dim.label}</span>
                 <span className="font-mono" style={{color: statusColor}}>{dim.score}</span>
@@ -118,7 +118,7 @@ export default function ScorePanel({ verification, isLoading, onRegenerate }) {
       </div>
 
       <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
-        {verification.flags?.improvements?.length > 0 && (
+        {Array.isArray(verification.flags?.improvements) && verification.flags.improvements.length > 0 && (
           <div>
             <h4 className="font-mono text-sand" style={{fontSize: '11px', letterSpacing: '1px', marginBottom: '12px'}}>AREAS TO IMPROVE</h4>
             <ul style={{listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px'}}>

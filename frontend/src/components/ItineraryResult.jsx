@@ -90,6 +90,15 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
 
   const isMulti = itinerary.tripType === "multi" || (Array.isArray(itinerary.destinations) && itinerary.destinations.length > 0);
 
+  const effectiveFormData = {
+    destination: formData?.destination || itinerary.destination || itinerary.startLocation || (Array.isArray(itinerary.destinations) ? itinerary.destinations.map((d) => d.name).join(", ") : "") || "India",
+    startDate: formData?.startDate || itinerary.startDate || "",
+    endDate: formData?.endDate || itinerary.endDate || "",
+    numTravellers: formData?.numTravellers || itinerary.numTravellers || 2,
+    budgetLevel: formData?.budgetLevel || itinerary.budgetLevel || "Standard",
+    ...formData
+  };
+
   const multiHotels = useMemo(() => {
     if (!isMulti) return [];
     return (itinerary.destinations || []).flatMap((dest) =>
@@ -107,8 +116,8 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
   const hotels = isMulti ? multiHotels : (itinerary.hotels || []);
   const restaurants = isMulti ? multiRestaurants : (itinerary.restaurants || []);
 
-  const tripId = formData
-    ? generateTripId(formData.destination || itinerary.startLocation || '', formData.startDate, formData.endDate)
+  const tripId = effectiveFormData
+    ? generateTripId(effectiveFormData.destination || itinerary.startLocation || '', effectiveFormData.startDate, effectiveFormData.endDate)
     : '';
 
   function openPhotoUploader(dayNumber) {
@@ -159,16 +168,16 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
         {isMulti ? (
           <>
             <SummaryChip icon="ti-route" label={`${itinerary.startLocation || ''} → ${(itinerary.destinations || []).map((d) => d.name).join(' → ')}${itinerary.endLocation && itinerary.endLocation !== itinerary.startLocation ? ` → ${itinerary.endLocation}` : ''}`} />
-            <SummaryChip icon="ti-calendar" label={`${formData.startDate} to ${formData.endDate}`} />
-            <SummaryChip icon="ti-users" label={`${formData.numTravellers} travellers`} />
-            <SummaryChip icon="ti-wallet" label={formData.budgetLevel} />
+            {effectiveFormData.startDate && <SummaryChip icon="ti-calendar" label={`${effectiveFormData.startDate} to ${effectiveFormData.endDate}`} />}
+            <SummaryChip icon="ti-users" label={`${effectiveFormData.numTravellers} travellers`} />
+            <SummaryChip icon="ti-wallet" label={effectiveFormData.budgetLevel} />
           </>
         ) : (
           <>
-            <SummaryChip icon="ti-map-pin" label={formData.destination} />
-            <SummaryChip icon="ti-calendar" label={`${formData.startDate} to ${formData.endDate}`} />
-            <SummaryChip icon="ti-users" label={`${formData.numTravellers} travellers`} />
-            <SummaryChip icon="ti-wallet" label={formData.budgetLevel} />
+            <SummaryChip icon="ti-map-pin" label={effectiveFormData.destination} />
+            {effectiveFormData.startDate && <SummaryChip icon="ti-calendar" label={`${effectiveFormData.startDate} to ${effectiveFormData.endDate}`} />}
+            <SummaryChip icon="ti-users" label={`${effectiveFormData.numTravellers} travellers`} />
+            <SummaryChip icon="ti-wallet" label={effectiveFormData.budgetLevel} />
           </>
         )}
       </section>
@@ -184,14 +193,14 @@ export default function ItineraryResult({ itinerary, formData, api, onReset, sho
       <CrowdOverviewCard 
         itinerary={itinerary}
         predictions={predictions}
-        formData={formData}
+        formData={effectiveFormData}
       />
 
       <Section title="Your Route Map" icon="ti-map-2">
         <DayRoutePanel
           days={itinerary.days || []}
-          destination={formData.destination}
-          getDestination={(day) => (isMulti ? day.destination || itinerary.startLocation : formData.destination)}
+          destination={effectiveFormData.destination}
+          getDestination={(day) => (isMulti ? day.destination || itinerary.startLocation : effectiveFormData.destination)}
         />
       </Section>
 
