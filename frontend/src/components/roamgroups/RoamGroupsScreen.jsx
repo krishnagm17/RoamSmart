@@ -55,7 +55,14 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
 
   const [groups, setGroups] = useState([]);
   const [unreadMap, setUnreadMap] = useState({});
-  const [activeGid, setActiveGid] = useState(null);
+  const [activeGid, setActiveGid] = useState(() => {
+    // Restore the open group from the URL hash on page load/refresh
+    try {
+      const h = window.location.hash;
+      const m = h.match(/roamgroups=([^&]+)/);
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch { return null; }
+  });
   const [parts, setParts] = useState(null);
   const [tab, setTab] = useState("chat");
   const [notifs, setNotifs] = useState([]);
@@ -171,6 +178,12 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
     // ── messages ──
     sendMessage: (data) => {
       sendMessage({ group, member: selfRecord, kind: data.kind || "text", text: data.text || "", attachment: data.attachment || null, placeId: data.placeId || null, pollId: data.pollId || null, topicId: data.topicId || null, replyTo: data.replyTo || null, mentions: data.mentions || [] })
+        .then((msg) => {
+          // Optimistic update: add the message to local state immediately so sender sees it right away
+          if (msg) {
+            setParts((p) => p ? { ...p, messages: [msg, ...(p.messages || [])] } : p);
+          }
+        })
         .catch(errToast);
       log("💬", `sent "${data.text?.slice(0, 40)}"`, "message");
     },

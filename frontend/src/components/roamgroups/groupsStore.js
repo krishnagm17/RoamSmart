@@ -197,7 +197,6 @@ export function subscribeGroup(gid, cb) {
       console.error("subscribeGroup unexpected error:", err);
     }
   };
-
   const tables = [
     ["groups", "id"], ["groupMembers", "gid"], ["messages", "gid"], ["polls", "gid"], ["places", "gid"],
     ["groupTopics", "gid"], ["sharedFiles", "gid"], ["announcements", "gid"], ["groupActivity", "gid"],
@@ -205,11 +204,21 @@ export function subscribeGroup(gid, cb) {
   ];
   channel = supabase.channel(`rg:${gid}`);
   tables.forEach(([table, col]) => {
-    channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `${col}=eq.${gid}` }, () => {
-      if (!timer) timer = setTimeout(() => { timer = null; refresh(); }, 60);
+    channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `${col}=eq.${gid}` }, (payload) => {
+      if (table === "messages" && payload.event === "INSERT") {
+        refresh();
+      } else {
+        if (!timer) timer = setTimeout(() => { timer = null; refresh(); }, 300);
+      }
     });
   });
-  channel.subscribe();
+  channel.subscribe((status) => {
+    if (status === "SUBSCRIBED") {
+      refresh();
+    } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      console.warn("Supabase Realtime channel error for group:", gid, status);
+    }
+  });
   refresh();
 
   return () => {
