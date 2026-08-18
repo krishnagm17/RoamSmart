@@ -1,0 +1,150 @@
+﻿/* ============================================================
+   RoamSmart — Mobile Responsive Overrides
+   Applied globally on top of all existing styles.
+   Breakpoints:
+     Mobile:  max-width: 768px
+     Tiny:    max-width: 430px
+   ============================================================ */
+
+/* ── 1. BASE ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  * { -webkit-tap-highlight-color: transparent; }
+  body { overflow-x: hidden; }
+  .main-content, .page-container, .app-wrapper { overflow-x: hidden; }
+  .page-container { padding: 72px 12px 80px; }
+}
+
+/* ── 2. NAVIGATION ───────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .nav-links { display: none !important; }
+  .nav-hamburger { display: grid !important; }
+  .nav-cta-btn { display: none !important; }
+}
+
+@media (max-width: 768px) {
+  .editorial-nav { padding: 10px 14px !important; }
+  .logo-text { font-size: 17px !important; }
+  .logo-icon-wrapper { width: 34px !important; height: 34px !important; }
+  .nav-user-name { display: none !important; }
+  .nav-user-chip { padding-right: 5px !important; }
+}
+
+/* ── 3. GROUPS SCREEN ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .rg-wrap { padding: 8px 0 140px !important; width: 100% !important; max-width: 100% !important; }
+  .rg-header { padding: 10px 12px !important; gap: 8px !important; }
+  .rg-header-title { font-size: 16px !important; }
+  .rg-tabs { gap: 4px !important; padding: 4px 10px 10px !important; }
+  .rg-tab { font-size: 11.5px !important; padding: 7px 12px !important; white-space: nowrap !important; }
+  .rg-progress { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; padding: 10px !important; }
+  .rg-chat { height: calc(100dvh - 230px) !important; min-height: 300px !important; }
+  .rg-chat-scroll { padding: 6px 8px 10px !important; }
+  .rg-bubble { max-width: min(88%, 380px) !important; font-size: 14px !important; padding: 8px 11px !important; }
+  .rg-composer { padding: 8px 10px !important; gap: 6px !important; }
+  .rg-composer-input { font-size: 16px !important; padding: 8px 10px !important; }
+  .rg-icon-btn { width: 34px !important; height: 34px !important; }
+  .rg-send-btn { width: 40px !important; height: 40px !important; min-width: 40px !important; }
+  .rg-sheet { max-height: 88vh !important; padding: 12px 14px 24px !important; border-radius: 20px 20px 0 0 !important; }
+  .rg-ava { width: 34px !important; height: 34px !important; font-size: 13px !important; }
+  .rg-act { font-size: 14px !important; padding: 12px 10px !important; }
+  .rg-list-row { padding: 12px 10px !important; gap: 10px !important; }
+  .rg-chip, .rg-tab { font-size: 12px !important; padding: 6px 12px !important; }
+  .rg-file-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .rg-group-card { padding: 12px !important; border-radius: 14px !important; }
+}
+
+/* ── 4. PLAN PAGE ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .form-wrap { padding: 20px 16px !important; border-radius: 16px !important; }
+  .result-layout { grid-template-columns: 1fr !important; }
+  .day-card { padding: 14px !important; border-radius: 14px !important; }
+  .action-row, .cta-row { flex-direction: column !important; gap: 10px !important; }
+  .btn-primary, .btn-secondary, .luxury-btn { width: 100% !important; justify-content: center !important; }
+  .field-row { flex-direction: column !important; }
+  .score-panel { padding: 16px !important; }
+  .mini-card { padding: 12px !important; }
+}
+
+/* ── 5. SPLIT PAGE ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .rs-wrap { padding: 8px 0 140px !important; max-width: 100% !important; }
+  .rs-header { padding: 10px 12px !important; }
+  .rs-expense-card { padding: 12px !important; border-radius: 14px !important; }
+  .rs-settle-row { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
+  .rs-tabs { gap: 4px !important; overflow-x: auto !important; }
+  .rs-tab { font-size: 12px !important; padding: 6px 12px !important; white-space: nowrap !important; }
+}
+
+/* ── 6. TRIPS / JOURNAL / SAFETY ─────────────────────────── */
+@media (max-width: 768px) {
+  .trips-grid, .journal-grid, .safety-grid { grid-template-columns: 1fr !important; }
+  .my-trip-card { padding: 14px !important; border-radius: 14px !important; }
+  .trip-actions { flex-direction: column !important; gap: 8px !important; }
+  .sos-contact-card { padding: 14px !important; }
+  .landmark-section, .scan-history-section { padding: 14px !important; border-radius: 14px !important; }
+  .scan-preview-img { max-height: 220px !important; }
+}
+
+/* ── 7. AUTH & PROFILE ───────────────────────────────────── */
+@media (max-width: 768px) {
+  .auth-container, .auth-card { padding: 24px 18px !important; border-radius: 16px !important; margin: 0 12px !important; }
+  .auth-title { font-size: 22px !important; }
+  .auth-btn { padding: 13px 20px !important; font-size: 14px !important; }
+  .profile-wrap { padding: 12px !important; }
+  .profile-card { padding: 16px !important; border-radius: 14px !important; }
+  .profile-avatar { width: 72px !important; height: 72px !important; font-size: 28px !important; }
+}
+
+/* ── 8. LUXURY FORMS ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  .luxury-form { padding: 18px 14px !important; border-radius: 16px !important; }
+  .luxury-submit { padding: 13px !important; font-size: 14px !important; }
+}
+
+/* ── 9. DASHBOARD ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .gt-hero { padding: 100px 5% 40px !important; min-height: auto !important; text-align: center !important; }
+  .gt-hero-ctas { flex-direction: column !important; align-items: center !important; gap: 12px !important; }
+  .gt-cards, .gt-steps, .gt-testi-grid { grid-template-columns: 1fr !important; }
+  .gt-section, .gt-section-alt, .gt-spotlight { padding: 56px 6% !important; }
+}
+
+/* ── 10. CHATBOT ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .floating-chatbot { bottom: 16px !important; right: 16px !important; }
+  .chatbot-panel { width: calc(100vw - 24px) !important; right: 12px !important; bottom: 70px !important; max-height: 65vh !important; }
+}
+
+/* ── 11. GENERAL UTILITY ─────────────────────────────────── */
+@media (max-width: 768px) {
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .card, .rg-card { padding: 14px !important; border-radius: 14px !important; }
+  .sidebar-panel { display: none !important; }
+  img { max-width: 100%; height: auto; }
+  button, a, [role="button"] { min-height: 36px; }
+}
+
+/* ── 12. TINY PHONES (< 430px) ───────────────────────────── */
+@media (max-width: 430px) {
+  .page-container { padding: 68px 10px 80px !important; }
+  .rg-bubble { max-width: 92% !important; }
+  .logo-text { font-size: 15px !important; }
+}
+
+/* ── 13. iOS SAFE AREA (notch / home indicator) ──────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 768px) {
+    .rg-composer, .rs-composer { padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important; }
+    .rg-wrap, .rs-wrap { padding-bottom: calc(140px + env(safe-area-inset-bottom)) !important; }
+  }
+}
+
+/* ── 14. iOS INPUT ZOOM PREVENTION ──────────────────────── */
+/* iOS zooms in when font-size < 16px — fix all inputs */
+@media (max-width: 768px) {
+  input[type="text"], input[type="email"], input[type="password"],
+  input[type="number"], input[type="search"], input[type="tel"],
+  input[type="url"], input[type="date"], select, textarea {
+    font-size: 16px !important;
+  }
+}
