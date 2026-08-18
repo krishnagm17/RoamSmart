@@ -56,9 +56,12 @@ async function loadHazardRows() {
 async function assessDestination(destination, coords, dateStr) {
   const withCoords = { ...destination, ...coords };
   const destName = withCoords.name || withCoords.destination || '';
+  const { geocodeCity } = require('./conditionChecker');
+  const resolvedCoords = (withCoords.latitude && withCoords.longitude) ? { lat: withCoords.latitude, lon: withCoords.longitude } : await geocodeCity(destName);
+  
   const weather = await fetchWeatherSnapshot(destName, dateStr);
   const [aqi, crowd] = await Promise.all([
-    fetchAqiSnapshot(destName, weather ? weather.coords : null),
+    fetchAqiSnapshot(destName, resolvedCoords || (weather ? weather.coords : null)),
     fetchCrowdSnapshot(destName),
   ]);
   const aggregate = computeAggregateScore(weather, aqi, crowd);
