@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Send, Smile, Paperclip, MapPin, Reply, Copy, Pencil, Trash2, Pin as PinIcon, PinOff, Vote, FileText,
+  Send, Smile, Paperclip, MapPin, Reply, Copy, Pencil, Trash2, Pin as PinIcon, PinOff, Vote, FileText, Eye,
 } from "lucide-react";
 import {
   parseMentions, detectLinks, timeOf, formatDate, initials, avatarStyle, isAdmin,
@@ -8,6 +8,7 @@ import {
   placeNetVotes, placeStatusMeta, POLL_TYPES,
 } from "./groupsEngine";
 import { PollSheet, PlaceSheet, FileSheet } from "./PollSheets";
+import { supabase } from "../../supabase";
 
 const EMOJIS = ["👍", "❤️", "😆", "🙌", "👀", "😮", "🎉", "😂", "😍", "🔥", "🤔", "🙏", "😅", "🥳", "😴", "💪"];
 
@@ -79,6 +80,14 @@ function ChatPlace({ place, self, onVote }) {
   );
 }
 
+// Load "deleted for me" message IDs from localStorage
+function loadDeletedForMe(gid) {
+  try { return new Set(JSON.parse(localStorage.getItem(`rg-deleted-me:${gid}`) || "[]")); } catch { return new Set(); }
+}
+function saveDeletedForMe(gid, set) {
+  try { localStorage.setItem(`rg-deleted-me:${gid}`, JSON.stringify([...set])); } catch {}
+}
+
 export default function ChatView({ g, act }) {
   const [draft, setDraft] = useState("");
   const [topicId, setTopicId] = useState("");
@@ -87,31 +96,68 @@ export default function ChatView({ g, act }) {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [activeMsg, setActiveMsg] = useState(null);
-  const [composerSheet, setComposerSheet] = useState(null); // 'poll' | 'place' | 'file'
+  const [seenByMsg, setSeenByMsg] = useState(null); // message to show "seen by" for
+  const [composerSheet, setComposerSheet] = useState(null);
+  const [typing, setTyping] = useState(null); // "username is typing..."
+  const [deletedForMe, setDeletedForMe] = useState(() => loadDeletedForMe(g?.id));
   const scrollRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
+  const typingTimer = useRef(null);
+  const typingChannel = useRef(null);
+  const lastTypingSent = useRef(0);
 
   const members = g.members || [];
   const pinned = (g.messages || []).filter((m) => m.pinned);
+
   const messages = useMemo(() => {
-    let list = g.messages || [];
+    let list = (g.messages || []).filter((m) => !deletedForMe.has(m.id));
     if (topicId) list = list.filter((m) => m.topicId === topicId);
     return [...list].sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-  }, [g.messages, topicId]);
+  }, [g.messages, topicId, deletedForMe]);
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, replyTo, activeMsg]);
 
-  // Simulated typing indicator for other members after the user types (demo realism).
-  const [typing, setTyping] = useState(null);
-  const typingTimer = useRef(null);
-  useEffect(() => () => clearTimeout(typingTimer.current), []);
+  // Real-time typing indicator via Supabase Broadcast
+  useEffect(() => {
+    if (!supabase || !g?.id || !g?.self?.id) return;
+    const ch = supabase.channel(`rg-typing:${g.id}`)
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        if (payload && payload.uid !== g.self.id) {
+          setTyping(payload.username || payload.name || "Someone");
+          clearTimeout(typingTimer.current);
+          typingTimer.current = setTimeout(() => setTyping(null), 3000);
+        }
+      })
+      .subscribe();
+    typingChannel.current = ch;
+    return () => {
+      supabase.removeChannel(ch);
+      typingChannel.current = null;
+      clearTimeout(typingTimer.current);
+    };
+  }, [g?.id, g?.self?.id]);
+
+  // Compute who has seen a message (members whose lastReadAt > message.createdAt)
+  function seenBy(msg) {
+    return members.filter(
+      (mem) => mem.id !== msg.uid && mem.lastReadAt && new Date(mem.lastReadAt).getTime() > new Date(msg.createdAt).getTime()
+    );
+  }
+
+  // Is this message "read" by at least one other member?
+  function isRead(msg) {
+    return seenBy(msg).length > 0;
+  }
 
   function focusReply(m) {
-    setReplyTo({ id: m.id, name: dName, text: (m.text || m.title || "").slice(0, 120), kind: m.kind });
+    const senderMem = members.find((mem) => mem.id === m.uid);
+    const senderName = senderMem?.username || senderMem?.name || m.name;
+    setReplyTo({ id: m.id, name: senderName, text: (m.text || m.title || "").slice(0, 120), kind: m.kind });
     setEditId(null);
     taRef.current && taRef.current.focus();
   }
@@ -123,13 +169,6 @@ export default function ChatView({ g, act }) {
     setDraft("");
     setReplyTo(null);
     setEmojiOpen(false);
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    const others = members.filter((m) => m.id !== g.self.id && m.status === "joined");
-    if (others.length) {
-      const pick = others[Math.floor(Math.random() * others.length)];
-      setTyping((pick.username || pick.name));
-      typingTimer.current = setTimeout(() => setTyping(null), 2200);
-    }
   }
 
   function onComposerKey(e) {
@@ -146,9 +185,30 @@ export default function ChatView({ g, act }) {
     }
   }
 
+  function onDraftChange(v) {
+    setDraft(v);
+    maybeOpenMentions(v);
+    // Send typing broadcast (max once every 2 seconds)
+    if (v.trim() && typingChannel.current && Date.now() - lastTypingSent.current > 2000) {
+      lastTypingSent.current = Date.now();
+      typingChannel.current.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { uid: g.self.id, username: g.self.username || g.self.name },
+      }).catch(() => {});
+    }
+  }
+
   function maybeOpenMentions(v) {
     const tail = v.replace(/(^|\s)@[A-Za-z0-9_.\-]*$/, "").length !== v.length;
     setMentionOpen(tail);
+  }
+
+  function deleteForMe(msgId) {
+    const next = new Set(deletedForMe);
+    next.add(msgId);
+    setDeletedForMe(next);
+    saveDeletedForMe(g.id, next);
   }
 
   async function onAttach(f) {
@@ -207,6 +267,7 @@ export default function ChatView({ g, act }) {
           const prev = messages[i - 1];
           const showDate = !prev || dayKey(prev.createdAt) !== dayKey(m.createdAt);
           const mine = m.uid === g.self.id;
+          const read = mine ? isRead(m) : false;
           return (
             <div key={m.id}>
               {showDate && (
@@ -214,7 +275,8 @@ export default function ChatView({ g, act }) {
                   {dayKey(m.createdAt) === dayKey(new Date().toISOString()) ? "Today" : formatDate(dayKey(m.createdAt))} · {timeOf(m.createdAt)}
                 </div>
               )}
-              <MessageRow m={m} mine={mine} g={g} act={act} onOpen={setActiveMsg} onReply={focusReply}
+              <MessageRow m={m} mine={mine} read={read} g={g} act={act} onOpen={setActiveMsg} onReply={focusReply}
+                onSeenBy={() => setSeenByMsg(m)}
                 poll={(g.polls || []).find((p) => p.id === m.pollId) || null}
                 place={(g.places || []).find((p) => p.id === m.placeId) || null}
                 renderPoll={(p) => <ChatPoll poll={p} self={g.self} isAdmin={isAdminSelf} onVote={act.votePoll} onFinalize={act.finalizePoll} />}
@@ -251,7 +313,7 @@ export default function ChatView({ g, act }) {
           rows={1}
           placeholder={g.topic ? `Message ${g.topic.name}…` : "Type a message…  (@ to mention, Enter to send)"}
           value={draft}
-          onChange={(e) => { setDraft(e.target.value); maybeOpenMentions(e.target.value); }}
+          onChange={(e) => onDraftChange(e.target.value)}
           onKeyDown={onComposerKey}
         />
         <button className="rg-send-btn" disabled={!draft.trim()} onClick={() => (editId ? (act.editMessage(editId, draft.trim()), setEditId(null), setDraft("")) : send())}><Send size={18} /></button>
@@ -272,7 +334,6 @@ export default function ChatView({ g, act }) {
         <div className="rg-card" style={{ marginTop: 8, padding: 8 }}>
           {members.filter((m) => m.status === "joined").map((m) => (
             <button key={m.id} className="rg-act rg-btn-sm" style={{ marginBottom: 4 }} onClick={() => {
-              const at = draft.lastIndexOf("@") + 1;
               const before = draft.slice(0, draft.lastIndexOf("@"));
               setDraft(`${before}@${m.username || m.name} `);
               setMentionOpen(false);
@@ -282,13 +343,34 @@ export default function ChatView({ g, act }) {
         </div>
       )}
 
+      {/* Seen by sheet */}
+      {seenByMsg && (
+        <div className="rg-overlay" onClick={() => setSeenByMsg(null)}>
+          <div className="rg-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="rg-sheet-handle" />
+            <b style={{ fontSize: 13, marginBottom: 10, display: "block" }}>👁️ Seen by</b>
+            {seenBy(seenByMsg).length === 0 ? (
+              <p className="rg-hint" style={{ margin: 0 }}>No one has seen this message yet</p>
+            ) : (
+              seenBy(seenByMsg).map((mem) => (
+                <div key={mem.id} className="rg-list-row" style={{ border: "none", padding: "6px 0" }}>
+                  <span className="rg-ava sm" style={avatarStyle(mem.id)}>{initials(mem.username || mem.name)}</span>
+                  <span style={{ marginLeft: 8, fontSize: 13 }}>{mem.username || mem.name}</span>
+                </div>
+              ))
+            )}
+            <button className="rg-btn rg-btn-ghost rg-btn-block" style={{ marginTop: 12 }} onClick={() => setSeenByMsg(null)}>Close</button>
+          </div>
+        </div>
+      )}
+
       {/* Message actions */}
       {activeMsg && (
         <div className="rg-overlay" onClick={() => setActiveMsg(null)}>
           <div className="rg-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="rg-sheet-handle" />
             <div style={{ marginBottom: 10, overflow: "hidden", borderBottom: "1px solid var(--border,rgba(255,255,255,.08))", paddingBottom: 10 }}>
-              <b style={{ fontSize: 13 }}>{(activeMsg.username || activeMsg.name)}</b>
+              <b style={{ fontSize: 13 }}>{(members.find((mem) => mem.id === activeMsg.uid)?.username || members.find((mem) => mem.id === activeMsg.uid)?.name) || activeMsg.name}</b>
               <p className="rg-hint" style={{ margin: 0 }}>{activeMsg.text || activeMsg.attachment?.name || ""}</p>
             </div>
             <div className="rg-quick-react">
@@ -304,15 +386,26 @@ export default function ChatView({ g, act }) {
             <div className="rg-actions">
               <button className="rg-act" onClick={() => { focusReply(activeMsg); setActiveMsg(null); }}><Reply size={16} /> Reply</button>
               {(activeMsg.text || "").trim() && <button className="rg-act" onClick={() => { try { navigator.clipboard.writeText(activeMsg.text); } catch {} setActiveMsg(null); }}><Copy size={16} /> Copy message</button>}
+              {/* Show "Seen by" only for sender's own messages */}
+              {activeMsg.uid === g.self.id && (
+                <button className="rg-act" onClick={() => { setSeenByMsg(activeMsg); setActiveMsg(null); }}><Eye size={16} /> Seen by</button>
+              )}
               {activeMsg.uid === g.self.id && <button className="rg-act" onClick={() => { setEditId(activeMsg.id); setDraft(activeMsg.text || ""); setActiveMsg(null); taRef.current && taRef.current.focus(); }}><Pencil size={16} /> Edit message</button>}
+              {/* Delete for everyone — sender or admin only */}
               {(activeMsg.uid === g.self.id || isAdminSelf) && (
                 <>
-                  <button className="rg-act" onClick={() => { act.deleteMessage(activeMsg); setActiveMsg(null); }}><Trash2 size={16} /> Delete message</button>
+                  <button className="rg-act" style={{ color: "#f87171" }} onClick={() => { act.deleteMessage(activeMsg); setActiveMsg(null); }}>
+                    <Trash2 size={16} /> Delete for everyone
+                  </button>
                   <button className="rg-act" onClick={() => { act.togglePin(activeMsg); setActiveMsg(null); }}>
                     {activeMsg.pinned ? <><PinOff size={16} /> Unpin message</> : <><PinIcon size={16} /> Pin message</>}
                   </button>
                 </>
               )}
+              {/* Delete for me — available to everyone for any message */}
+              <button className="rg-act" style={{ color: "#9ca3af" }} onClick={() => { deleteForMe(activeMsg.id); setActiveMsg(null); }}>
+                <Trash2 size={16} /> Delete for me
+              </button>
             </div>
             <button className="rg-btn rg-btn-ghost rg-btn-block" style={{ marginTop: 10 }} onClick={() => setActiveMsg(null)}>Close</button>
           </div>
@@ -327,9 +420,17 @@ export default function ChatView({ g, act }) {
   );
 }
 
-function MessageRow({ m, mine, g, act, onOpen, onReply, renderPoll, renderPlace, poll, place }) {
+function MessageRow({ m, mine, read, g, act, onOpen, onReply, onSeenBy, renderPoll, renderPlace, poll, place }) {
+  // WhatsApp style ticks: ✓ = sent, ✓✓ grey = delivered, ✓✓ green = read
   const statusTick = mine ? (
-    <span className="rg-tick">{m.status === "read" ? "✓✓" : m.status === "delivered" ? "✓✓" : "✓"}</span>
+    <span
+      className="rg-tick"
+      style={{ color: read ? "#34d399" : "rgba(255,255,255,0.5)", cursor: read ? "pointer" : "default" }}
+      onClick={read ? onSeenBy : undefined}
+      title={read ? "Tap to see who read this" : "Sent"}
+    >
+      {read ? "✓✓" : "✓"}
+    </span>
   ) : null;
   const reactKeys = Object.entries(m.reactions || {}).filter(([, uids]) => uids.length);
 
@@ -354,7 +455,7 @@ function MessageRow({ m, mine, g, act, onOpen, onReply, renderPoll, renderPlace,
               )}
               <Content m={m} renderPoll={renderPoll} renderPlace={renderPlace} poll={poll} place={place} />
               {m.topicId && <div className="rg-hint" style={{ fontSize: 10.5, marginTop: 3 }}>#{g.topics?.find((t) => t.id === m.topicId)?.name}</div>}
-              {m.edited && <span className="rg-msg-edited rg-hint" style={{ fontSize: 10 }}> edited</span>}
+              {m.edited && <span className="rg-msg-edited rg-hint" style={{ fontSize: 10 }}>edited</span>}
               <div className="rg-msg-meta">
                 <span>{timeOf(m.createdAt)}</span>
                 {statusTick}
