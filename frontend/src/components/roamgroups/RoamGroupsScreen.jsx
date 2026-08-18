@@ -107,11 +107,16 @@ export default function RoamGroupsScreen({ joinCode, setActiveTab }) {
     (async () => {
       const res = await joinGroupByCode(joinCode, self);
       if (res.ok) {
+        setGroups((prev) => {
+          if (prev.find(x => x.gid === res.group.id)) return prev;
+          return [{ gid: res.group.id, role: "member", joinedAt: new Date().toISOString(), lastReadAt: 0, group: res.group }, ...prev];
+        });
         openGroup(res.group.id);
-        showToast(`Joined ${res.group.name} 🎉`, "success");
+        showToast(`Joined ${res.group.name} 🚀`, "success");
       } else {
         showToast(res.error || "Invalid invite code", "error");
       }
+      if (setJoinCode) setJoinCode("");
     })();
     // eslint-disable-next-line
   }, [joinCode, userId]);
@@ -300,9 +305,14 @@ export default function RoamGroupsScreen({ joinCode, setActiveTab }) {
 
     // ── members ──
     addMember: (m) => {
+      setParts((prev) => {
+        if (!prev) return prev;
+        if (prev.members.some((x) => x.id === m.id)) return prev;
+        return { ...prev, members: [...prev.members, m] };
+      });
       setMember(group.id, m).then(() => {
-        log("👋", `invited ${m.name}`, "member");
-        notify(`${m.name} joined the group`, "member", "👋");
+        log("🤝", `invited ${m.name}`, "member");
+        notify(`${m.name} joined the group`, "member", "🤝");
       }).catch(errToast);
     },
     promoteMember: (m) => { setMember(group.id, { ...m, role: "admin" }).catch(errToast); log("👑", `made ${m.name} an admin`, "member"); },
@@ -330,12 +340,14 @@ export default function RoamGroupsScreen({ joinCode, setActiveTab }) {
   }
 
   async function onCreate(form) {
+    if (!form.name || !form.destination) return;
     try {
-      const g = await createGroup({ data: form, self, withDemo: !!form.addMembers });
+      const g = await createGroup({ data: form, self, withDemo: false });
+      setGroups((prev) => [{ gid: g.id, role: "admin", joinedAt: new Date().toISOString(), lastReadAt: 0, group: g }, ...prev]);
       setActiveGid(g.id);
       setTab("chat");
       setCreateOpen(false);
-      showToast(`Group "${g.name}" created 🎉`, "success");
+      showToast(`Group "${g.name}" created 🚀`, "success");
     } catch (e) {
       errToast({ message: e?.message || "Could not create the group." });
     }
@@ -351,7 +363,11 @@ export default function RoamGroupsScreen({ joinCode, setActiveTab }) {
 
   return (
     <div className="rg-wrap">
-      {!group || !g ? (
+      {activeGid && !parts ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p className="rg-hint">Loading group...</p>
+        </div>
+      ) : !group || !parts ? (
         <GroupsHome
           groups={groups} self={self} notifs={notifs} unreadMap={unreadMap}
           onCreate={() => setCreateOpen(true)} onJoin={() => setJoinOpen(true)}
@@ -376,7 +392,15 @@ export default function RoamGroupsScreen({ joinCode, setActiveTab }) {
         <JoinGroupSheet self={self}
           onJoin={(code) => joinGroupByCode(code, self)}
           onClose={() => setJoinOpen(false)}
-          onJoined={(grp) => { setJoinOpen(false); openGroup(grp.id); showToast(`Joined ${grp.name}`, "success"); }} />
+          onJoined={(grp) => { 
+            setJoinOpen(false); 
+            setGroups((prev) => {
+              if (prev.find(x => x.gid === grp.id)) return prev;
+              return [{ gid: grp.id, role: "member", joinedAt: new Date().toISOString(), lastReadAt: 0, group: grp }, ...prev];
+            });
+            openGroup(grp.id); 
+            showToast(`Joined ${grp.name}`, "success"); 
+          }} />
       )}
       {inviteOpen && group && (
         <InviteSheet group={group} members={members} self={selfRecord}
@@ -476,7 +500,7 @@ function GroupsHome({ groups, self, notifs, unreadMap, onCreate, onJoin, onOpen,
                   <div className="rg-group-name">{grp.name}</div>
                   <div className="rg-group-meta">
                     {groupSubtitle(grp)} · {mcount} member{mcount === 1 ? "" : "s"}
-                    <br/><span style={{ opacity: 0.8, fontSize: "0.95em" }}>Created by {entry.members?.find((m) => m.role === "admin")?.name || entry.members?.[0]?.name || "Someone"}</span>
+                    <br/><span style={{ opacity: 0.8, fontSize: "0.95em" }}>Created by {grp.createdBy === self.id ? "You" : "a member"}</span>
                   </div>
                 </div>
                 {unread > 0 && <span className="rg-group-unread">{unread}</span>}
@@ -526,7 +550,7 @@ function GroupView({ g, act, tab, setTab, onBack, onInvite, onSettings, onSearch
           <h2>{g.group.name}</h2>
           <p className="rg-sub">
             {groupSubtitle(g.group)}
-            <br/><span style={{ opacity: 0.85, fontSize: "0.9em" }}>Created by {g.members?.find((m) => m.role === "admin")?.name || g.members?.[0]?.name || "Someone"}</span>
+            <br/><span style={{ opacity: 0.85, fontSize: "0.9em" }}>Created by {g.group?.createdBy === self.id ? "You" : g.members?.find((m) => m.role === "admin")?.name || g.members?.[0]?.name || "a member"}</span>
           </p>
           <div className="rg-row" style={{ marginTop: 12, gap: 8 }}>
             {(g.members || []).slice(0, 5).map((m) => (

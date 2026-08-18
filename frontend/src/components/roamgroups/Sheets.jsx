@@ -98,14 +98,6 @@ export function CreateGroupSheet({ self, onSave, onClose }) {
         </div>
       </div>
 
-      <label className="rg-list-row" style={{ cursor: "pointer" }}>
-        <input type="checkbox" checked={g.addMembers} onChange={(e) => set("addMembers", e.target.checked)} style={{ accentColor: "#10b981" }} />
-        <div className="rg-list-body">
-          <div className="rg-list-name">Add sample travel buddies</div>
-          <div className="rg-list-sub">Rahul, Arjun, Priya &amp; co join instantly so you can try chat, polls and itinerary together.</div>
-        </div>
-      </label>
-
       {err && <div className="rg-error" style={{ marginBottom: 10 }}>{err}</div>}
       <div className="rg-row" style={{ gap: 10 }}>
         <button className="rg-btn rg-btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancel</button>

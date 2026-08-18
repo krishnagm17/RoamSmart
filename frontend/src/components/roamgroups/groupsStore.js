@@ -162,36 +162,40 @@ export function subscribeGroup(gid, cb) {
   };
   const refresh = async () => {
     if (!alive) return;
-    const [gR, mR, msgR, pR, plR, tR, fR, aR, actR, itR, fpR] = await Promise.all([
-      supabase.from("groups").select("*").eq("id", gid).maybeSingle(),
-      supabase.from("groupMembers").select("*").eq("gid", gid).order("joinedAt", { ascending: true }).limit(200),
-      supabase.from("messages").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(500),
-      supabase.from("polls").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(200),
-      supabase.from("places").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(300),
-      supabase.from("groupTopics").select("*").eq("gid", gid).order("createdAt", { ascending: true }).limit(100),
-      supabase.from("sharedFiles").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(200),
-      supabase.from("announcements").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(100),
-      supabase.from("groupActivity").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(300),
-      supabase.from("groupItineraries").select("*").eq("gid", gid).maybeSingle(),
-      supabase.from("finalPlans").select("*").eq("gid", gid).maybeSingle(),
-    ]);
-    if (!alive) return;
-    if (gR.error || mR.error || msgR.error) {
-      console.warn("subscribeGroup fetch error:", gR.error?.message || mR.error?.message || msgR.error?.message);
-      return;
+    try {
+      const [gR, mR, msgR, pR, plR, tR, fR, aR, actR, itR, fpR] = await Promise.all([
+        supabase.from("groups").select("*").eq("id", gid).maybeSingle(),
+        supabase.from("groupMembers").select("*").eq("gid", gid).order("joinedAt", { ascending: true }).limit(200),
+        supabase.from("messages").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(500),
+        supabase.from("polls").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(200),
+        supabase.from("places").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(300),
+        supabase.from("groupTopics").select("*").eq("gid", gid).order("createdAt", { ascending: true }).limit(100),
+        supabase.from("sharedFiles").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(200),
+        supabase.from("announcements").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(100),
+        supabase.from("groupActivity").select("*").eq("gid", gid).order("createdAt", { ascending: false }).limit(300),
+        supabase.from("groupItineraries").select("*").eq("gid", gid).maybeSingle(),
+        supabase.from("finalPlans").select("*").eq("gid", gid).maybeSingle(),
+      ]);
+      if (!alive) return;
+      if (gR.error || mR.error || msgR.error) {
+        console.warn("subscribeGroup fetch error:", gR.error?.message || mR.error?.message || msgR.error?.message);
+        return;
+      }
+      state.group = gR.data ? rowToGroup(gR.data) : null;
+      state.members = (mR.data || []).map(rowToMember);
+      state.messages = (msgR.data || []).map(rowToMessage);
+      state.polls = (pR.data || []).map(rowToDoc);
+      state.places = (plR.data || []).map(rowToDoc);
+      state.topics = (tR.data || []).map((r) => ({ id: r.id, gid: r.gid, name: r.name, nameLower: r.nameLower, emoji: r.emoji, createdBy: r.createdBy, createdAt: r.createdAt }));
+      state.files = (fR.data || []).map((r) => ({ id: r.id, gid: r.gid, uid: r.uid, name: r.name, kind: r.kind, url: r.url, path: r.path, dataUrl: r.dataUrl, caption: r.caption, folder: r.folder, sizeKB: r.sizeKB, createdAt: r.createdAt }));
+      state.announcements = (aR.data || []).map(rowToDoc);
+      state.activity = (actR.data || []).map((r) => ({ id: r.id, gid: r.gid, uid: r.uid, name: r.name, icon: r.icon, text: r.text, kind: r.kind, createdAt: r.createdAt }));
+      state.itinerary = itR.data ? itR.data.data : null;
+      state.finalplan = fpR.data ? fpR.data.data : null;
+      emit();
+    } catch (err) {
+      console.error("subscribeGroup unexpected error:", err);
     }
-    state.group = gR.data ? rowToGroup(gR.data) : null;
-    state.members = (mR.data || []).map(rowToMember);
-    state.messages = (msgR.data || []).map(rowToMessage);
-    state.polls = (pR.data || []).map(rowToDoc);
-    state.places = (plR.data || []).map(rowToDoc);
-    state.topics = (tR.data || []).map((r) => ({ id: r.id, gid: r.gid, name: r.name, nameLower: r.nameLower, emoji: r.emoji, createdBy: r.createdBy, createdAt: r.createdAt }));
-    state.files = (fR.data || []).map((r) => ({ id: r.id, gid: r.gid, uid: r.uid, name: r.name, kind: r.kind, url: r.url, path: r.path, dataUrl: r.dataUrl, caption: r.caption, folder: r.folder, sizeKB: r.sizeKB, createdAt: r.createdAt }));
-    state.announcements = (aR.data || []).map(rowToDoc);
-    state.activity = (actR.data || []).map((r) => ({ id: r.id, gid: r.gid, uid: r.uid, name: r.name, icon: r.icon, text: r.text, kind: r.kind, createdAt: r.createdAt }));
-    state.itinerary = itR.data ? itR.data.data : null;
-    state.finalplan = fpR.data ? fpR.data.data : null;
-    emit();
   };
 
   const tables = [
@@ -330,23 +334,6 @@ export async function createGroup({ data, self, withDemo = false, invited = [] }
     const admin = makeActor(self, "admin");
     local.upsertMember(g.id, admin);
     local.addInvite({ gid: g.id, code: g.code, createdBy: self.id });
-    if (withDemo || invited.length) {
-      const buddies = (invited && invited.length ? invited : DEMO_USERS.slice(0, 5)).map((u) => memberFromUser(u));
-      local.addMessage(newMessage({ group: g, member: admin, kind: "text", text: `Welcome to ${g.name}! 🎒 Let's plan this trip together — share ideas, vote and lock the itinerary as a team.` }));
-      buddies.forEach((b, i) => {
-        local.upsertMember(g.id, b);
-        if (i === 0) {
-          const d = new Date();
-          local.addMessage(newMessage({ group: g, member: b, kind: "text", text: `Hey! I'm so excited for ${g.destination}. I can start hunting for stays and things to do. 🌊`, createdAt: new Date(d.getTime() - 60000).toISOString() }));
-        } else if (i === 1) {
-          local.addMessage(newMessage({ group: g, member: b, kind: "text", text: "Count me in for the food tours 🍜" }));
-        }
-      });
-      ["Places to Visit", "Food", "Budget"].forEach((name, i) => {
-        local.ensureTopic(g.id, admin, { name, emoji: ["📍", "🍜", "💰"][i] });
-      });
-      local.upsertGroup({ ...g, memberCount: 1 + buddies.length });
-    }
     emitLocalGroup(g.id);
     emitLocalGlobal();
     return g;
@@ -358,32 +345,6 @@ export async function createGroup({ data, self, withDemo = false, invited = [] }
   if (e2) throw e2;
   const { error: e3 } = await supabase.from("groupInvitations").insert({ code: g.code, gid: g.id, createdBy: self.id, createdAt: nowIso() });
   if (e3) throw e3;
-  if (withDemo || invited.length) {
-    const buddies = (invited && invited.length ? invited : DEMO_USERS.slice(0, 5)).map((u) => memberFromUser(u));
-    const { error: e4 } = await supabase.from("messages").insert(toMessageRow(newMessage({ group: g, member: makeActor(self, "admin"), kind: "text", text: `Welcome to ${g.name}! 🎒 Let's plan this trip together — share ideas, vote and lock the itinerary as a team.` })));
-    if (e4) console.warn("Demo intro message failed:", e4);
-    
-    for (let i = 0; i < buddies.length; i++) {
-      const b = buddies[i];
-      const { error: e5 } = await supabase.from("groupMembers").insert(toMemberRow(b, g.id));
-      if (e5) console.warn("Demo member insert failed:", e5);
-      
-      if (i === 0) {
-        const d = new Date();
-        await supabase.from("messages").insert(toMessageRow(newMessage({ group: g, member: b, kind: "text", text: `Hey! I'm so excited for ${g.destination}. I can start hunting for stays and things to do. 🌊`, createdAt: new Date(d.getTime() - 60000).toISOString() })));
-      } else if (i === 1) {
-        await supabase.from("messages").insert(toMessageRow(newMessage({ group: g, member: b, kind: "text", text: "Count me in for the food tours 🌮" })));
-      }
-    }
-    
-    for (let i = 0; i < ["Places to Visit", "Food", "Budget"].length; i++) {
-      const name = ["Places to Visit", "Food", "Budget"][i];
-      const t = newTopic(g, makeActor(self, "admin"), { name, emoji: ["📍", "🍜", "💰"][i] });
-      const { error: e6 } = await supabase.from("groupTopics").insert({ id: t.id, gid: g.id, name, nameLower: String(name).toLowerCase(), emoji: ["📍", "🍜", "💰"][i], createdBy: self.id, createdAt: nowIso() });
-      if (e6) console.warn("Demo topic insert failed:", e6);
-    }
-    await supabase.from("groups").update({ memberCount: 1 + buddies.length }).eq("id", g.id);
-  }
   await addActivityLocal({ gid: g.id, uidRaw: self.id, name: self.name, icon: "✨", text: "created the group and invited friends", kind: "group" });
   return g;
 }
@@ -729,7 +690,8 @@ export async function setMember(gid, member) {
     return;
   }
   const { data: existing } = await supabase.from("groupMembers").select("*").eq("gid", gid).eq("firebaseUid", member.id).maybeSingle();
-  await supabase.from("groupMembers").upsert(toMemberRow({ ...member, joinedAt: existing?.joinedAt || member.joinedAt || nowIso(), lastReadAt: existing?.lastReadAt || member.lastReadAt || 0 }, gid), { onConflict: "gid,firebaseUid" });
+  const res = await supabase.from("groupMembers").upsert(toMemberRow({ ...member, joinedAt: existing?.joinedAt || member.joinedAt || nowIso(), lastReadAt: existing?.lastReadAt || member.lastReadAt || 0 }, gid), { onConflict: "gid,firebaseUid" });
+  if (res.error) throw res.error;
   if (!existing) {
     const { count } = await supabase.from("groupMembers").select("firebaseUid", { count: "exact", head: true }).eq("gid", gid);
     await supabase.from("groups").update({ memberCount: count || 0 }).eq("id", gid);

@@ -15,7 +15,9 @@ export default function MembersView({ g, act }) {
           <h2>Members</h2>
           <p className="rg-sub" style={{ marginTop: 2 }}>{members.filter((m) => m.status === "joined").length} members</p>
         </div>
-        <button className="rg-btn rg-btn-sm rg-btn-primary" onClick={() => setInviteOpen(true)}><UserPlus size={14} /> Invite</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="rg-btn rg-btn-sm rg-btn-primary" onClick={() => setInviteOpen(true)}><UserPlus size={16} /> Invite</button>
+        </div>
       </div>
 
       {members.map((m) => {
