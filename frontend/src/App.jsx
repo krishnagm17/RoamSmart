@@ -55,6 +55,16 @@ function sanitizeTab(tab) {
 export default function App() {
   const auth = useAuth();
   const { toast, showToast } = useToast();
+  const [screen, setScreen] = useState("form");
+  const [formData, setFormData] = useState(null);
+  const [itinerary, setItinerary] = useState(null);
+  const [error, setError] = useState("");
+  const [userInputs, setUserInputs] = useState(null);
+  const [verification, setVerification] = useState(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const requestIdRef = useRef(0);
+  const [rsTrip, setRsTrip] = useState(null);
+  
   const [activeTab, setActiveTabState] = useState(() => {
     const code = parseInviteCode();
     if (code) return "groups";
