@@ -38,7 +38,7 @@ const screenMotion = {
   transition: { duration: 0.35, ease: "easeOut" }
 };
 
-const VALID_TABS = ["dashboard", "plan", "trips", "split", "groups", "profile", "scanner", "journal", "safety", "sos", "alerts"];
+const VALID_TABS = ["dashboard", "plan", "trips", "split", "groups", "profile", "scanner", "journal", "safety", "sos", "alerts", "login"];
 
 function sanitizeTab(tab) {
   if (!tab) return "dashboard";
