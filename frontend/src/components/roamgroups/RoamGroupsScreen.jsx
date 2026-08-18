@@ -204,11 +204,13 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
         optionIds = [optionId];
       }
       voteOnPoll(poll, selfRecord, optionIds);
+      setParts((p) => p ? { ...p, polls: [...(p.polls || [])] } : p);
       upsertPoll(group.id, poll).catch(errToast);
     },
     finalizePoll: (poll) => {
       poll.finalizedBy = selfRecord.id;
       poll.finalizedOptionIds = pollWinningIds(poll);
+      setParts((p) => p ? { ...p, polls: [...(p.polls || [])] } : p);
       upsertPoll(group.id, poll).catch(errToast);
       const winner = (poll.options || []).find((o) => o.id === pollWinningIds(poll)[0])?.label;
       log("🏁", `finalized poll "${poll.title}" → ${winner || "winner"}`, "decision");
@@ -236,10 +238,12 @@ export default function RoamGroupsScreen({ joinCode, onClearJoinCode, setActiveT
     // ── places ──
     togglePlaceVote: (place, dir) => {
       engineTogglePlaceVote(place, selfRecord, dir);
+      setParts((p) => p ? { ...p, places: [...(p.places || [])] } : p);
       upsertPlace(group.id, place).catch(errToast);
     },
     finalizePlace: (place, status) => {
       place.status = status;
+      setParts((p) => p ? { ...p, places: [...(p.places || [])] } : p);
       upsertPlace(group.id, place).catch(errToast);
       if (status === "finalized") {
         const item = placeToItineraryItem(place, null);
