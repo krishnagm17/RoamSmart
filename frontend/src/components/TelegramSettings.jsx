@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { MessageCircle, BellRing, Loader2 } from 'lucide-react';
+import { MessageCircle, Copy, Check, ExternalLink, RefreshCw, Loader2 } from 'lucide-react';
 import api from '../api.js';
 
 export default function TelegramSettings({ userId, showToast }) {
-  const [chatId, setChatId] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [testLoading, setTestLoading] = useState(false);
   const [status, setStatus] = useState({ connected: false });
   const [statusLoading, setStatusLoading] = useState(true);
+  const [link, setLink] = useState('');
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [polling, setPolling] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -16,48 +17,71 @@ export default function TelegramSettings({ userId, showToast }) {
         const res = await api.get(`/api/telegram/status/${userId}`);
         setStatus(res.data);
       } catch {
-        // assume disconnected
+        // status endpoint may be unavailable — assume disconnected
       } finally {
         setStatusLoading(false);
       }
     })();
   }, [userId]);
 
-  async function handleSave() {
-    if (!chatId.trim()) return showToast?.('Please enter a Chat ID.', 'error');
-    setLoading(true);
+  // When a link is generated, poll until connected (or timeout).
+  useEffect(() => {
+    if (!link || !userId) return;
+    setPolling(true);
+    const timer = setInterval(async () => {
+      try {
+        const res = await api.get(`/api/telegram/status/${userId}`);
+        setStatus(res.data);
+        if (res.data.connected) {
+          clearInterval(timer);
+          setPolling(false);
+          showToast?.('Telegram connected! You will now receive alerts here.', 'success');
+        }
+      } catch {
+        // keep polling
+      }
+    }, 3000);
+    const timeout = setTimeout(() => {
+      clearInterval(timer);
+      setPolling(false);
+    }, 5 * 60 * 1000);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(timeout);
+    };
+  }, [link, userId, showToast]);
+
+  async function handleConnect() {
+    if (!userId) return;
+    setLinkLoading(true);
     try {
-      await api.post('/api/telegram/save-chat-id', { userId, chatId: chatId.trim() });
-      setStatus({ connected: true });
-      showToast?.('Telegram Chat ID saved!', 'success');
+      const res = await api.post('/api/telegram/connect', { userId });
+      if (res.data.link) setLink(res.data.link);
+      showToast?.('Open the Telegram link to connect.', 'info');
     } catch (err) {
-      showToast?.('Could not save Chat ID. Try again.', 'error');
+      console.error('Telegram connect error:', err);
+      showToast?.('Could not create a connect link. Try again.', 'error');
     } finally {
-      setLoading(false);
+      setLinkLoading(false);
     }
   }
-  
+
   async function handleDisconnect() {
     try {
       await api.post('/api/telegram/disconnect', { userId });
       setStatus({ connected: false });
-      setChatId('');
+      setLink('');
       showToast?.('Telegram disconnected.', 'info');
     } catch (err) {
       showToast?.('Could not disconnect.', 'error');
     }
   }
 
-  async function handleTestAlert() {
-    setTestLoading(true);
-    try {
-      await api.post('/api/telegram/test-alert', { userId });
-      showToast?.('Test alert sent to your Telegram!', 'success');
-    } catch (err) {
-      showToast?.('Failed to send test alert. Make sure you messaged the bot first!', 'error');
-    } finally {
-      setTestLoading(false);
-    }
+  function handleCopy() {
+    if (!link) return;
+    navigator.clipboard?.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -66,51 +90,55 @@ export default function TelegramSettings({ userId, showToast }) {
         <MessageCircle size={18} />
         <h3>Telegram Alerts</h3>
       </div>
-      
+
       {statusLoading ? (
         <div className="telegram-loading">Checking connection…</div>
       ) : status.connected ? (
         <div className="telegram-connected">
           <div className="telegram-connected-icon">✅</div>
           <p><strong>Connected</strong></p>
-          <p className="telegram-muted">You will receive travel & hazard alerts on Telegram.</p>
-          <div className="telegram-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-            <button className="btn-primary" onClick={handleTestAlert} disabled={testLoading} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              {testLoading ? <Loader2 size={14} className="spin" /> : <BellRing size={14} />}
-              Test Alert
-            </button>
-            <button className="btn-secondary" onClick={handleDisconnect}>Disconnect</button>
+          <p className="telegram-muted">
+            {status.username ? `Telegram: @${status.username}` : 'You will receive travel & hazard alerts on Telegram.'}
+          </p>
+          <div className="telegram-actions">
+            <button className="btn-secondary" onClick={handleDisconnect}>Disconnect Telegram</button>
           </div>
         </div>
       ) : (
         <div className="telegram-disconnected">
-          <p className="telegram-muted">
-            Enter your Telegram Chat ID below. You must send a message to our bot first so it can message you!
-          </p>
-          
-          <div style={{ display: 'flex', gap: '8px', width: '100%', maxWidth: '400px', marginTop: '12px' }}>
-            <input 
-              type="text" 
-              value={chatId}
-              onChange={(e) => setChatId(e.target.value)}
-              placeholder="e.g. 123456789"
-              style={{ 
-                flex: 1, 
-                padding: '10px 14px', 
-                borderRadius: '8px', 
-                border: '1px solid var(--border-color)', 
-                background: 'rgba(0,0,0,0.1)',
-                color: 'var(--text-primary)',
-                fontSize: '14px'
-              }}
-            />
-            <button className="btn-primary" onClick={handleSave} disabled={loading} style={{ padding: '0 20px', borderRadius: '8px' }}>
-              {loading ? 'Saving...' : 'Connect'}
-            </button>
-          </div>
+          {!link ? (
+            <>
+              <p className="telegram-muted">
+                Connect your Telegram so official hazard warnings and travel condition alerts reach you instantly.
+              </p>
+              <button className="btn-primary" onClick={handleConnect} disabled={linkLoading}>
+                {linkLoading ? <Loader2 size={15} className="spin" /> : <MessageCircle size={15} />}
+                {linkLoading ? 'Creating link…' : 'Connect Telegram'}
+              </button>
+              {status.botUsername && (
+                <p className="telegram-bot-hint">Bot: @{status.botUsername}</p>
+              )}
+            </>
+          ) : (
+            <div className="telegram-link-box">
+              <p className="telegram-muted">
+                Open this link in Telegram (or your phone) and tap <strong>Start</strong>. Your chat will be linked securely.
+              </p>
+              {polling && <p className="telegram-polling"><RefreshCw size={12} className="spin" /> Waiting for you to press Start…</p>}
+              <div className="telegram-link-row">
+                <code className="telegram-link">{link}</code>
+                <button className="btn-secondary telegram-copy" onClick={handleCopy} title="Copy link">
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
+                </button>
+              </div>
+              <a href={link} target="_blank" rel="noopener noreferrer" className="telegram-open-btn btn-primary">
+                Open in Telegram <ExternalLink size={14} />
+              </a>
+              <button className="btn-secondary telegram-cancel" onClick={() => setLink('')}>Cancel</button>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
-
