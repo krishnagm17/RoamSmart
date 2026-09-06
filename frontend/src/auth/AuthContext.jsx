@@ -18,6 +18,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [needsProfile, setNeedsProfile] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
     if (!authReady()) {
@@ -39,6 +40,7 @@ export function AuthProvider({ children }) {
         setUser(null);
         setProfile(null);
         setNeedsProfile(false);
+        setProfileLoaded(false);
         setStatus("signedOut");
         clearSupabaseAuth();
       }
@@ -51,6 +53,7 @@ export function AuthProvider({ children }) {
     if (status !== "signedIn" || !user?.uid) {
       setProfile(null);
       setNeedsProfile(false);
+      setProfileLoaded(false);
       return () => {};
     }
     let alive = true;
@@ -70,10 +73,12 @@ export function AuthProvider({ children }) {
         if (!p || !p.usernameLower) {
           setProfile(p || null);
           setNeedsProfile(true);
+          setProfileLoaded(true);
           return;
         }
         setProfile(p);
         setNeedsProfile(false);
+        setProfileLoaded(true);
       });
     })();
     return () => { alive = false; unsub(); };
@@ -121,14 +126,14 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(() => ({
     status, user, profile,
-    needsProfile, needsVerification,
+    needsProfile, needsVerification, profileLoaded,
     isFirebaseMock,
     firebaseReady: authReady(),
     signUp, signIn, signInWithGoogle, resetPassword, signOut,
     completeProfile, updateProfile, changeUsername,
     refreshUser,
     mapAuthError,
-  }), [status, user, profile, needsProfile, needsVerification, signUp, signIn, signInWithGoogle, resetPassword, signOut, completeProfile, updateProfile, changeUsername, refreshUser]);
+  }), [status, user, profile, needsProfile, needsVerification, profileLoaded, signUp, signIn, signInWithGoogle, resetPassword, signOut, completeProfile, updateProfile, changeUsername, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
