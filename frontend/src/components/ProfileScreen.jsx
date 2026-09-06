@@ -73,6 +73,13 @@ export default function ProfileScreen({ showToast }) {
     if (upi && !validateUpi(upi)) return flash("err", "That doesn't look like a valid UPI ID (e.g. krishna@upi).");
     setBusy(true);
     try {
+      if (auth.needsProfile) {
+        await auth.completeProfile({
+          displayName: displayName.trim() || "Traveller",
+          username: username.trim() || `user_${Math.random().toString(36).slice(2,8)}`
+        });
+      }
+
       const patch = {
         displayName: displayName.trim() || "Traveller",
         bio: bio.trim(),
@@ -110,26 +117,38 @@ export default function ProfileScreen({ showToast }) {
     e.preventDefault();
     setBusy(true);
     try {
-      // Save display name, bio, phone
-      const patch = {
-        displayName: displayName.trim() || "Traveller",
-        bio: bio.trim(),
-        phone: phone.trim(),
-      };
-      await auth.updateProfile(patch);
-
-      // Also save username if it changed
-      if (username.trim()) {
-        const norm = normalizeUsername(username);
+      let created = false;
+      const norm = normalizeUsername(username);
+      
+      if (auth.needsProfile && norm) {
         const problem = usernameProblems(norm);
         if (problem) {
           flash("err", problem);
           setBusy(false);
           return;
         }
-        if (norm !== profile.usernameLower) {
-          await auth.changeUsername(norm);
+        await auth.completeProfile({
+          displayName: displayName.trim() || "Traveller",
+          username: norm
+        });
+        created = true;
+      }
+
+      const patch = {
+        displayName: displayName.trim() || "Traveller",
+        bio: bio.trim(),
+        phone: phone.trim(),
+      };
+      await auth.updateProfile(patch); 
+
+      if (!created && username.trim() && norm !== profile.usernameLower) {
+        const problem = usernameProblems(norm);
+        if (problem) {
+          flash("err", problem);
+          setBusy(false);
+          return;
         }
+        await auth.changeUsername(norm);
       }
 
       saveLocalProfile({ displayName: patch.displayName });
