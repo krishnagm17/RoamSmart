@@ -22,6 +22,7 @@ export default function ProfileScreen({ showToast }) {
   const [phone, setPhone] = useState(profile.phone || "");
   const [upi, setUpi] = useState(profile.upi || "");
   const [preferredApp, setPreferredApp] = useState(profile.preferredApp || "Google Pay");
+  const [username, setUsername] = useState(profile.username || "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState({ tone: "", text: "" });
 
@@ -58,9 +59,8 @@ export default function ProfileScreen({ showToast }) {
     }
   }
 
-  async function changeUsername(e) {
-    e.preventDefault();
-    const norm = normalizeUsername(e.target.value);
+  async function saveUsername() {
+    const norm = normalizeUsername(username);
     const problem = usernameProblems(norm);
     if (problem) return flash("err", problem);
     if (norm === profile.usernameLower) return;
@@ -213,7 +213,7 @@ export default function ProfileScreen({ showToast }) {
           </div>
           <div className="profile-field">
             <label className="auth-label">Username</label>
-            <div className="profile-input-icon"><AtSign size={15} /><input className="auth-input" value={profile.username || ""} onChange={changeUsername} placeholder="taken? enter a new one" /></div>
+            <div className="profile-input-icon"><AtSign size={15} /><input className="auth-input" value={username} onChange={(e) => setUsername(e.target.value)} onBlur={saveUsername} placeholder="enter your handle" /></div>
             <div className="auth-hint">Your permanent handle. Changing it here releases the old one.</div>
           </div>
           <div className="profile-field">
