@@ -466,7 +466,10 @@ export default function App() {
     );
   }
   
-  if (isAuthed && (auth.needsVerification || (auth.profileLoaded && auth.needsProfile))) {
+  if (isAuthed && auth.needsVerification) {
+    return <AuthScreen />;
+  }
+  if (isAuthed && auth.profileLoaded && auth.needsProfile && activeTab === "profile") {
     return <AuthScreen />;
   }
   const GATED_TABS = ["plan", "trips", "split", "profile", "scanner", "journal", "sos", "safety", "login"];

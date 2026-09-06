@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    RoamSmart — Mobile Responsive Overrides
    Applied globally on top of all existing styles.
    Breakpoints:
@@ -15,7 +15,7 @@
 }
 
 /* ── 2. NAVIGATION ───────────────────────────────────────── */
-@media (max-width: 1100px) {
+@media (max-width: 768px) {
   .nav-links { display: none !important; }
   .nav-hamburger { display: grid !important; }
   .nav-cta-btn { display: none !important; }
