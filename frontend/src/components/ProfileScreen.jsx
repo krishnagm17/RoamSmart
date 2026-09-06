@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Camera, LogOut, Mail, User as UserIcon, AtSign, Phone, RefreshCw, ShieldCheck, Save, Trash2, MessageCircle, Copy, Check, ExternalLink } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { usernameProblems, normalizeUsername, resendVerification } from "../firebase/authService";
@@ -23,6 +23,7 @@ export default function ProfileScreen({ showToast }) {
   const [upi, setUpi] = useState(profile.upi || "");
   const [preferredApp, setPreferredApp] = useState(profile.preferredApp || "Google Pay");
   const [username, setUsername] = useState(profile.username || "");
+  const [usernameCheck, setUsernameCheck] = useState(null); // { status: "checking"|"available"|"taken", text: "" }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState({ tone: "", text: "" });
 
@@ -36,6 +37,36 @@ export default function ProfileScreen({ showToast }) {
     setMsg({ tone, text });
     setTimeout(() => setMsg({ tone: "", text: "" }), 3000);
   };
+
+  useEffect(() => {
+    if (!username || username === profile.username) {
+      setUsernameCheck(null);
+      return;
+    }
+    
+    const norm = normalizeUsername(username);
+    const problem = usernameProblems(norm);
+    if (problem) {
+      setUsernameCheck({ status: "taken", text: problem });
+      return;
+    }
+
+    setUsernameCheck({ status: "checking", text: "Checking..." });
+    const timer = setTimeout(async () => {
+      try {
+        const { ok, error } = await usernameAvailable(norm);
+        if (ok) {
+          setUsernameCheck({ status: "available", text: `@${norm} is available` });
+        } else {
+          setUsernameCheck({ status: "taken", text: error || "That username is taken." });
+        }
+      } catch (err) {
+        setUsernameCheck({ status: "taken", text: "Could not check availability." });
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [username, profile.username]);
 
   async function saveProfile(e) {
     e.preventDefault();
@@ -249,7 +280,14 @@ export default function ProfileScreen({ showToast }) {
           <div className="profile-field">
             <label className="auth-label">Username</label>
             <div className="profile-input-icon"><AtSign size={15} /><input className="auth-input" value={username} onChange={(e) => setUsername(e.target.value)} onBlur={saveUsername} placeholder="enter your handle" /></div>
-            <div className="auth-hint">Your permanent handle. Changing it here releases the old one.</div>
+            
+            {usernameCheck ? (
+              <div style={{ fontSize: 13, marginTop: 4, color: usernameCheck.status === 'available' ? '#10b981' : usernameCheck.status === 'checking' ? '#a1a1aa' : '#ef4444' }}>
+                {usernameCheck.text}
+              </div>
+            ) : (
+              <div className="auth-hint">Your permanent handle. Changing it here releases the old one.</div>
+            )}
           </div>
           <div className="profile-field">
             <label className="auth-label">Phone (for SMS alerts)</label>
