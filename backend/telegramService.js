@@ -101,18 +101,21 @@ async function handleStartCommand(token, message) {
     connectedAt: new Date().toISOString()
   };
 
-  const { error } = await supabase
+  const { error, data } = await supabase
     .from('users')
     .update({ telegram: telegramData })
     .eq('firebaseUid', userId);
 
   // Keep userProfiles synced for older backend logic
-  await supabase
+  const { error: error2 } = await supabase
     .from('userProfiles')
     .update({ telegramChatId: String(chatId) })
     .eq('userId', userId);
 
-  if (error) return 'Could not save your chat. Please try again.';
+  if (error || error2) {
+    console.error('Supabase update error in handleStart:', error || error2);
+    return 'Could not save your chat. Please try again.';
+  }
 
   return `✅ RoamSmart Telegram Connected!\nYou will now receive important RoamSmart alerts here.\nYou can manage your notification preferences from the RoamSmart website.`;
 }

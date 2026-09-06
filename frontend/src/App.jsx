@@ -68,8 +68,9 @@ export default function App() {
   const [activeTab, setActiveTabState] = useState(() => {
     const code = parseInviteCode();
     if (code) return "groups";
-    const stored = localStorage.getItem("roam_active_tab");
-    return sanitizeTab(stored);
+    const rawHash = window.location.hash.replace("#", "");
+    if (rawHash) return sanitizeTab(rawHash);
+    return "dashboard";
   });
 
   const setRawActiveTab = (tab) => {
@@ -111,6 +112,8 @@ export default function App() {
         const rawHash = window.location.hash.replace("#", "");
         if (rawHash) {
           setRawActiveTab(rawHash);
+        } else {
+          setRawActiveTab("dashboard");
         }
       }
     };
