@@ -38,6 +38,20 @@ export default function ProfileScreen({ showToast }) {
     setTimeout(() => setMsg({ tone: "", text: "" }), 3000);
   };
 
+  // Sync loaded profile into input fields on mount / refresh
+  useEffect(() => {
+    if (auth.profile) {
+      if (auth.profile.displayName) setDisplayName(auth.profile.displayName);
+      if (auth.profile.username) setUsername(auth.profile.username);
+      if (auth.profile.bio) setBio(auth.profile.bio);
+      if (auth.profile.phone) setPhone(auth.profile.phone);
+      if (auth.profile.upi) setUpi(auth.profile.upi);
+      if (auth.profile.preferredApp) setPreferredApp(auth.profile.preferredApp);
+    } else if (user?.displayName && !displayName) {
+      setDisplayName(user.displayName);
+    }
+  }, [auth.profile, user]);
+
   useEffect(() => {
     if (!username || username === profile.username) {
       setUsernameCheck(null);
@@ -139,6 +153,10 @@ export default function ProfileScreen({ showToast }) {
         bio: bio.trim(),
         phone: phone.trim(),
       };
+      if (norm) {
+        patch.username = username.trim();
+        patch.usernameLower = norm;
+      }
       await auth.updateProfile(patch); 
 
       if (!created && username.trim() && norm !== profile.usernameLower) {

@@ -99,9 +99,17 @@ export function listenUserProfile(uid, cb) {
     cb(null);
     return () => {};
   }
+
+  // 1. Instantly emit cached profile so the user sees their data immediately on page load/refresh
+  const cached = readLocal(uid);
+  if (cached && (cached.usernameLower || cached.displayName)) {
+    cb(cached);
+  }
+
   if (!fsReady()) {
-    const initial = readLocal(uid) || { ...emptyProfile, uid };
-    cb(initial);
+    if (!cached || (!cached.usernameLower && !cached.displayName)) {
+      cb({ ...emptyProfile, uid });
+    }
     profileBus.set(uid, [...(profileBus.get(uid) || []), cb]);
     return () => {
       const arr = profileBus.get(uid) || [];
@@ -115,14 +123,28 @@ export function listenUserProfile(uid, cb) {
   let unsub = () => {};
   const fetch = async () => {
     if (!alive) return;
-    const { data, error } = await supabase.from("users").select("*").eq("firebaseUid", uid).maybeSingle();
-    if (!alive) return;
-    if (error) {
-      console.warn("profile load failed:", error?.message || error);
-      cb({ ...emptyProfile, uid });
-      return;
+    try {
+      const { data, error } = await supabase.from("users").select("*").eq("firebaseUid", uid).maybeSingle();
+      if (!alive) return;
+      if (error || !data) {
+        if (error) console.warn("profile load failed, using local cache:", error?.message || error);
+        const local = readLocal(uid);
+        if (local && (local.usernameLower || local.displayName)) {
+          cb(local);
+        } else {
+          cb({ ...emptyProfile, uid });
+        }
+        return;
+      }
+      const remote = rowToProfile(data, uid);
+      // Sync remote into local storage cache
+      writeLocal(uid, remote);
+      cb(remote);
+    } catch (err) {
+      console.warn("profile fetch error, fallback to local:", err);
+      const local = readLocal(uid);
+      cb(local || { ...emptyProfile, uid });
     }
-    cb(rowToProfile(data, uid));
   };
 
   (async () => {
@@ -149,46 +171,58 @@ export function listenUserProfile(uid, cb) {
 
 export async function usernameAvailable(lower) {
   if (!fsReady()) return { ok: true, error: FS_UNAVAILABLE, mock: true };
-  const { data, error } = await supabase.from("users").select("firebaseUid").eq("usernameLower", lower).maybeSingle();
-  if (error) return { ok: true, error: null };
-  return { ok: !data, error: data ? "That username is taken." : null };
+  try {
+    const { data, error } = await supabase.from("users").select("firebaseUid").eq("usernameLower", lower).maybeSingle();
+    if (error) return { ok: true, error: null };
+    return { ok: !data, error: data ? "That username is taken." : null };
+  } catch {
+    return { ok: true, error: null };
+  }
 }
 
 // Atomically-ish reserve a username + create the profile row.
 export async function createUserProfile(uid, { displayName, username, email, phone = "" }) {
-  if (!fsReady()) {
-    const lower = normalizeUsername(username);
-    writeLocal(uid, { displayName, username, usernameLower: lower, email, phone, createdAt: nowIso() });
-    return;
-  }
   const lower = normalizeUsername(username);
+  // Always save locally so data is guaranteed to persist on refresh
+  writeLocal(uid, { displayName, username, usernameLower: lower, email, phone, createdAt: nowIso() });
+
+  if (!fsReady()) return;
+
   const row = profileToRow(uid, { displayName, username, usernameLower: lower, email, phone });
   row.createdAt = nowIso();
-  const { error } = await supabase
-    .from("users")
-    .upsert(row, { onConflict: "firebaseUid" });
-  if (error?.code === "23505") throw new Error("That username is taken.");
-  if (error) throw error;
+  try {
+    const { error } = await supabase
+      .from("users")
+      .upsert(row, { onConflict: "firebaseUid" });
+    if (error?.code === "23505") throw new Error("That username is taken.");
+    if (error) console.warn("Supabase createUserProfile error:", error?.message || error);
+  } catch (err) {
+    console.warn("Supabase createUserProfile exception:", err);
+    if (err.message === "That username is taken.") throw err;
+  }
 }
 
 // Claim a new username on the existing profile.
 export async function claimUsername(uid, currentLower, newUsername) {
-  if (!fsReady()) {
-    const lower = normalizeUsername(newUsername);
-    const cur = readLocal(uid) || {};
-    writeLocal(uid, { username: newUsername, usernameLower: lower, ...(cur.createdAt ? {} : { createdAt: nowIso() }) });
-    return;
-  }
   const lower = normalizeUsername(newUsername);
-  const { data, error: dupErr } = await supabase.from("users").select("firebaseUid").eq("usernameLower", lower).maybeSingle();
-  if (dupErr) throw dupErr;
-  if (data && data.firebaseUid !== uid) throw new Error("That username is taken.");
-  const { error } = await supabase
-    .from("users")
-    .update({ username: newUsername, usernameLower: lower, updatedAt: nowIso() })
-    .eq("firebaseUid", uid);
-  if (error?.code === "23505") throw new Error("That username is taken.");
-  if (error) throw error;
+  writeLocal(uid, { username: newUsername, usernameLower: lower });
+
+  if (!fsReady()) return;
+
+  try {
+    const { data, error: dupErr } = await supabase.from("users").select("firebaseUid").eq("usernameLower", lower).maybeSingle();
+    if (dupErr) console.warn("Supabase dup check error:", dupErr?.message);
+    if (data && data.firebaseUid !== uid) throw new Error("That username is taken.");
+    const { error } = await supabase
+      .from("users")
+      .update({ username: newUsername, usernameLower: lower, updatedAt: nowIso() })
+      .eq("firebaseUid", uid);
+    if (error?.code === "23505") throw new Error("That username is taken.");
+    if (error) console.warn("Supabase claimUsername error:", error?.message || error);
+  } catch (err) {
+    console.warn("Supabase claimUsername exception:", err);
+    if (err.message === "That username is taken.") throw err;
+  }
 }
 
 // Map the app-facing profile fields to the public.users column names.
@@ -210,15 +244,21 @@ export function mapProfilePatchToRow(patch = {}) {
 }
 
 export async function updateUserProfile(uid, patch) {
-  if (!fsReady()) {
-    writeLocal(uid, patch);
-    return true;
-  }
+  // Always update local cache first
+  writeLocal(uid, patch);
+
+  if (!fsReady()) return true;
+
   const row = mapProfilePatchToRow(patch);
-  const { error } = await supabase.from("users").update({ ...row, updatedAt: nowIso() }).eq("firebaseUid", uid);
-  if (error) {
-    console.warn("profile update failed:", error?.message || error);
-    return false;
+  row.firebaseUid = uid;
+  row.updatedAt = nowIso();
+  try {
+    const { error } = await supabase.from("users").upsert(row, { onConflict: "firebaseUid" });
+    if (error) {
+      console.warn("profile update failed:", error?.message || error);
+    }
+  } catch (err) {
+    console.warn("profile update exception:", err);
   }
   // Keep every group membership's denormalized fields current so your crew
   // (and the group member list) always sees your latest UPI ID + name.
