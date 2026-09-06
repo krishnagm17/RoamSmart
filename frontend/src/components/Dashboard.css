@@ -61,7 +61,7 @@
   position: relative;
   z-index: 3;
   width: 100%;
-  max-width: 1080px;
+  max-width: 1200px;
   margin: 0;
   text-align: left;
 }
@@ -83,7 +83,7 @@
 
 .gt-hero-title {
   font-family: 'Cinzel', serif;
-  font-size: clamp(44px, 8vw, 92px);
+  font-size: clamp(52px, 9.5vw, 120px);
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: 0.01em;
@@ -102,7 +102,7 @@
 .gt-hero-sub {
   max-width: 640px;
   margin: 0 0 30px;
-  font-size: clamp(16px, 2vw, 19px);
+  font-size: clamp(17px, 2.2vw, 22px);
   line-height: 1.7;
   color: #d4d4d8;
   font-weight: 400;
@@ -151,9 +151,9 @@
   color: #ffffff;
   border: none;
   border-radius: 16px;
-  padding: 15px 30px;
+  padding: 18px 36px;
   font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -176,9 +176,9 @@
   color: #fafafa;
   border: 1.5px solid rgba(255, 255, 255, 0.18);
   border-radius: 16px;
-  padding: 15px 30px;
+  padding: 18px 36px;
   font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
