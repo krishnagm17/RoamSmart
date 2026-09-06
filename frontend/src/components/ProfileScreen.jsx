@@ -75,6 +75,41 @@ export default function ProfileScreen({ showToast }) {
     }
   }
 
+  async function saveProfileInfo(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      // Save display name, bio, phone
+      const patch = {
+        displayName: displayName.trim() || "Traveller",
+        bio: bio.trim(),
+        phone: phone.trim(),
+      };
+      await auth.updateProfile(patch);
+
+      // Also save username if it changed
+      if (username.trim()) {
+        const norm = normalizeUsername(username);
+        const problem = usernameProblems(norm);
+        if (problem) {
+          flash("err", problem);
+          setBusy(false);
+          return;
+        }
+        if (norm !== profile.usernameLower) {
+          await auth.changeUsername(norm);
+        }
+      }
+
+      saveLocalProfile({ displayName: patch.displayName });
+      flash("ok", "Profile saved — synced to your account.");
+    } catch (err) {
+      flash("err", err?.message || "Could not save. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -224,6 +259,11 @@ export default function ProfileScreen({ showToast }) {
             <label className="auth-label">Bio</label>
             <textarea className="auth-input" rows={2} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A line about how you travel" style={{ resize: "vertical" }} />
           </div>
+
+          <button className="auth-btn primary" style={{ marginTop: 8 }} onClick={saveProfileInfo} disabled={busy}>
+            <Save size={15} style={{ verticalAlign: "middle", marginRight: 6 }} />
+            {busy ? "Saving…" : "Save profile"}
+          </button>
         </div>
 
         <div className="profile-card">
