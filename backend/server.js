@@ -1741,17 +1741,44 @@ app.post('/api/telegram/test-alert', async (req, res) => {
 app.get('/api/telegram/status/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('telegram')
-      .eq('firebaseUid', userId)
-      .maybeSingle();
-    if (error) throw error;
-    
+    let connected = false;
+    let telegramUserId = null;
+    let username = null;
+
+    try {
+      const { data: user } = await supabase
+        .from('users')
+        .select('telegram')
+        .eq('firebaseUid', userId)
+        .maybeSingle();
+      if (user?.telegram && user.telegram.connected) {
+        connected = true;
+        telegramUserId = user.telegram.telegramUserId;
+        username = user.telegram.username;
+      }
+    } catch (e) {
+      // column may not exist or query error
+    }
+
+    if (!connected) {
+      try {
+        const { data: profile } = await supabase
+          .from('userProfiles')
+          .select('telegramChatId')
+          .eq('userId', userId)
+          .maybeSingle();
+        if (profile?.telegramChatId) {
+          connected = true;
+        }
+      } catch (e) {
+        // table or column error
+      }
+    }
+
     res.json({
-      connected: !!(user && user.telegram && user.telegram.connected),
-      telegramUserId: user?.telegram?.telegramUserId,
-      username: user?.telegram?.username,
+      connected,
+      telegramUserId,
+      username,
       botUsername: (process.env.TELEGRAM_BOT_USERNAME || 'RoamSmartBot').replace('@', ''),
     });
   } catch (err) {

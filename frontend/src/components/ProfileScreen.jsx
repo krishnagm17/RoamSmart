@@ -29,7 +29,16 @@ export default function ProfileScreen({ showToast }) {
 
   // Telegram connect state
   const [tgLink, setTgLink] = useState("");
-  const [tgStatus, setTgStatus] = useState({ connected: false });
+  const [tgStatus, setTgStatus] = useState(() => {
+    try {
+      const u = auth.user;
+      if (u?.uid) {
+        const cached = localStorage.getItem(`roam_tg_${u.uid}`);
+        if (cached) return JSON.parse(cached);
+      }
+    } catch {}
+    return { connected: false };
+  });
   const [tgBusy, setTgBusy] = useState(false);
   const [tgCopied, setTgCopied] = useState(false);
 
@@ -218,14 +227,51 @@ export default function ProfileScreen({ showToast }) {
   const email = user?.email || profile.email || "";
 
   async function refreshTgStatus() {
-    if (!user) return;
+    if (!user?.uid) return;
     try {
       const res = await api.get(`/api/telegram/status/${user.uid}`);
-      setTgStatus(res.data);
+      if (res.data) {
+        setTgStatus(res.data);
+        if (res.data.connected) {
+          setTgLink("");
+          try {
+            localStorage.setItem(`roam_tg_${user.uid}`, JSON.stringify(res.data));
+          } catch {}
+        } else {
+          try {
+            const cached = localStorage.getItem(`roam_tg_${user.uid}`);
+            if (cached && JSON.parse(cached)?.connected) {
+              localStorage.removeItem(`roam_tg_${user.uid}`);
+            }
+          } catch {}
+        }
+      }
     } catch {
-      setTgStatus({ connected: false });
+      try {
+        const cached = localStorage.getItem(`roam_tg_${user.uid}`);
+        if (cached) setTgStatus(JSON.parse(cached));
+      } catch {}
     }
   }
+
+  // Check Telegram status on mount & whenever user loads
+  useEffect(() => {
+    if (!user?.uid) return;
+    try {
+      const cached = localStorage.getItem(`roam_tg_${user.uid}`);
+      if (cached) setTgStatus(JSON.parse(cached));
+    } catch {}
+    refreshTgStatus();
+  }, [user?.uid]);
+
+  // When connect link is displayed, poll until user taps Start in Telegram
+  useEffect(() => {
+    if (!tgLink || !user?.uid) return;
+    const timer = setInterval(() => {
+      refreshTgStatus();
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [tgLink, user?.uid]);
 
   async function connectTelegram() {
     if (!user) return;
@@ -248,6 +294,9 @@ export default function ProfileScreen({ showToast }) {
       await api.post("/api/telegram/disconnect", { userId: user.uid });
       setTgLink("");
       setTgStatus({ connected: false });
+      try {
+        localStorage.removeItem(`roam_tg_${user.uid}`);
+      } catch {}
       flash("ok", "Telegram disconnected.");
     } catch {
       flash("err", "Could not disconnect.");
